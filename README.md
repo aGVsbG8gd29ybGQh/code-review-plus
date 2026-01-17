@@ -416,7 +416,7 @@
 
 **Code Review Plus** © 2026 Zero. All Rights Reserved.
 
-本插件为专有软件，详细许可条款请查看 [LICENSE](LICENSE) 文件。
+本插件为专有软件，详细许可条款请查看 [LISENSE](https://github.com/aGVsbG8gd29ybGQh/code-review-plus/blob/main/LISENSE) 文件。
 
 ### 使用限制
 
