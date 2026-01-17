@@ -427,9 +427,7 @@
 
 ### 第三方组件
 
-本软件使用了部分开源组件，详见 [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md)。
-
-主要包括：
+本软件使用了部分开源组件，主要包括：
 - Carbon Icons (Apache 2.0) - 插件图标
 - IntelliJ Platform SDK (Apache 2.0) - 开发框架
 - SQLite JDBC (Apache 2.0) - 数据库驱动
