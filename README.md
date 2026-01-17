@@ -18,12 +18,10 @@
 
 - [功能特性](#-功能特性)
 - [核心优势](#-核心优势)
-- [安装方法](#-安装方法)
 - [快速开始](#-快速开始)
 - [使用指南](#-使用指南)
 - [适用场景](#-适用场景)
 - [技术架构](#-技术架构)
-- [常见问题](#-常见问题)
 - [问题反馈](#-问题反馈)
 
 ---
@@ -153,39 +151,6 @@
 - 悬浮评论机制，代码变更后评论不丢失
 - 评论列表视图，集中管理所有评论
 - 原始代码回显，即使代码已变更仍可查看评论时的上下文
-
----
-
-## 📦 安装方法
-
-### 方式一：通过JetBrains Marketplace安装（推荐）
-
-1. 打开IDEA，进入 `Settings/Preferences` → `Plugins`
-2. 点击 `Marketplace` 标签
-3. 搜索 "**Code Review Plus**"
-4. 点击 `Install` 安装
-5. 重启IDEA
-
-![安装步骤](docs/images/install-from-marketplace.png)
-> 📸 **截图说明**：Marketplace搜索和安装界面
-
----
-
-### 方式二：手动安装
-
-1. 下载插件文件（`.zip` 格式）
-2. 打开IDEA，进入 `Settings/Preferences` → `Plugins`
-3. 点击设置图标 ⚙️ → `Install Plugin from Disk...`
-4. 选择下载的 `.zip` 文件
-5. 重启IDEA
-
----
-
-### 系统要求
-
-- **IDEA版本**: 2025.2 或更高版本
-- **依赖插件**: Git4Idea（IDEA内置）
-- **操作系统**: Windows / macOS / Linux
 
 ---
 
