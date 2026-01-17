@@ -8,8 +8,8 @@
 
 通过智能状态跟踪、增量评审、评论系统和持久化会话管理，让分支评审工作变得简单高效
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://plugins.jetbrains.com/plugin/XXXXX)
-[![IDEA Version](https://img.shields.io/badge/IDEA-2025.2.3+-orange.svg)](https://www.jetbrains.com/idea/)
+[![Version](https://img.shields.io/badge/version-2.0.1-blue.svg)](https://plugins.jetbrains.com/plugin/XXXXX)
+[![IDEA Version](https://img.shields.io/badge/IDEA-2025.2+-orange.svg)](https://www.jetbrains.com/idea/)
 [![License](https://img.shields.io/badge/license-Proprietary-red.svg)]()
 
 </div>
