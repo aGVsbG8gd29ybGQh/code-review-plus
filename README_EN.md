@@ -132,7 +132,7 @@ Code Review Plus uses a Freemium model: **only the Auto Review feature requires 
 
 Our commitment: **existing free features will always remain free, with no license restrictions added in the future**. You can use them with confidence.
 
-The Auto Review feature comes with a 30-day trial period automatically activated upon installation from JetBrains Marketplace. After the trial expires, you can purchase a license on the Marketplace to continue using it. If you'd like an extended trial period, please contact us by email with your reason, and we'll consider providing an invitation code.
+The Auto Review feature comes with a 30-day trial period automatically activated upon installation from JetBrains Marketplace. After the trial expires, you can purchase a license on the Marketplace to continue using it. If you'd like an extended trial period, please contact us by email with your reason, and we'll consider providing a free license.
 
 ---
 
