@@ -11,6 +11,7 @@ An IntelliJ IDEA plugin that helps you review code efficiently with session mana
 [![Version](https://img.shields.io/badge/version-3.0.0-blue.svg)](https://plugins.jetbrains.com/plugin/XXXXX)
 [![IDEA Version](https://img.shields.io/badge/IDEA-2025.2+-orange.svg)](https://www.jetbrains.com/idea/)
 
+[🎉🎉 Get Discount Code 🎉🎉](https://github.com/aGVsbG8gd29ybGQh/code-review-plus/issues/1)
 </div>
 
 ---
