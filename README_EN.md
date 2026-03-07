@@ -10,7 +10,7 @@
 
 An IntelliJ IDEA plugin that helps you review code efficiently with session management, incremental review, automated rules, and a comment system
 
-[![Version](https://img.shields.io/badge/version-3.0.0-blue.svg)](https://plugins.jetbrains.com/plugin/XXXXX)
+[![Version](https://img.shields.io/badge/version-3.3.0-blue.svg)](https://plugins.jetbrains.com/plugin/29361-code-review-plus)
 [![IDEA Version](https://img.shields.io/badge/IDEA-2025.2+-orange.svg)](https://www.jetbrains.com/idea/)
 
 </div>
@@ -98,6 +98,8 @@ This means you don't have to start over — just continue reviewing the changed 
 ### Comment System
 
 Add text comments to code in the Diff view to record issues and improvement suggestions.
+
+**Comment numbering**: Each comment is automatically assigned a unique sequential number (e.g., C1, C2, C3) within a session. Comment numbers are displayed in the Comment List, gutter icon tooltips, and exported reports for easy reference and communication.
 
 **Comment statuses**:
 
@@ -253,13 +255,15 @@ Completion formula: (Passed + Issues) / Total × 100%
 
 ### Comment Management
 
-**Add a comment**: Right-click in the Diff view → `Add Comment`. Supports selecting multiple lines as the comment range. Maximum 500 characters per comment.
+**Add a comment**: Right-click in the Diff view → `Add Comment`. Supports selecting multiple lines as the comment range. Maximum 500 characters per comment. Each comment is automatically assigned a number.
 
-**View comments**: Click the comment icon in the Diff view's gutter area, or switch to the Comment List view for a consolidated view.
+**View comments**: Click the comment icon in the Diff view's gutter area to view a single comment's details, or switch to the Comment List view for a consolidated view.
+
+**Search comments**: In the Comment List view's search box, enter a comment number (e.g., C1) to locate a specific comment precisely, or search by file name or path.
 
 **Status transitions**: Pending → No Action Needed / Resolved. Change status in the comment panel or comment list.
 
-**Batch operations**: In the Comment List view, select multiple comments and right-click to update statuses in bulk.
+**Batch operations**: In the Comment List view, select multiple comments and right-click to update statuses or delete in bulk.
 
 **Navigate to code**: Double-click a comment in the Comment List to jump to the corresponding location in the Diff view.
 
@@ -267,41 +271,70 @@ Completion formula: (Passed + Issues) / Total × 100%
 
 ## Auto Review Rules [Premium]
 
-Auto review uses predefined rules to batch-mark code block statuses, reducing manual effort. Click the "Auto Review" button in the toolbar to run.
+Auto review uses predefined rules to batch-mark code block statuses, reducing manual effort. You can click the "Auto Review" button in the toolbar to run on all files, or right-click selected files in the file list to run a partial auto review on specific files only.
 
 ### Built-in Rules
 
-**Pass Rules** (automatically mark as "Passed" when conditions are met):
+Rules are organized into five categories, displayed as a categorized tree in the settings panel:
 
+#### Security
+
+| Rule | Description | Default |
+|------|-------------|---------|
+| Hardcoded Secret Detection | Hardcoded passwords, API keys, tokens, etc. detected | Enabled |
+| Prohibit New import * | New wildcard import statements added | Enabled |
+
+#### Code Quality
+
+| Rule | Description | Default |
+|------|-------------|---------|
+| Debug Code Leftover | `System.out.println`, `e.printStackTrace()`, etc. detected | Enabled |
+| TODO/FIXME Comment | New TODO, FIXME, etc. comments added | Enabled |
+
+#### IDE Inspections
+
+| Rule | Description | Default |
+|------|-------------|---------|
+| IDE Error Inspection | Errors detected by IDEA's built-in code inspections | Enabled |
+| IDE Warning Inspection | Warnings detected by IDEA's built-in code inspections | Enabled |
+| IDE Weak Warning Inspection | Weak warnings detected by IDEA's built-in code inspections | Enabled |
+
+#### Spring Framework — New
+
+Deep analysis rules designed specifically for Spring/Spring Boot projects. Leverages IDEA's PSI (Program Structure Interface) for semantic-level code analysis, catching framework usage issues that are easily missed during manual reviews:
+
+| Rule | Description | Default |
+|------|-------------|---------|
+| Spring Circular Dependency Detection | Detects circular dependencies between Beans, covering constructor injection, field injection, setter injection, and more | Enabled |
+| Spring Injection Issue Detection | Detects scope mismatch, layer violation, ambiguous injection, nullable injection without null check, and unused injected fields | Enabled |
+| `@Transactional` Misuse Detection | Detects transaction misuse: annotation ineffectiveness (non-public methods, self-invocation, swallowed exceptions, `@Async` conflicts, etc.) and long transactions (network I/O inside transactions — HTTP/RPC/MQ/Redis — with recursive call chain analysis) | Enabled |
+
+> **Note**: Spring rules depend on the Java PSI API and require a Java-capable IDE (IntelliJ IDEA). In IDEs without Java support, these rules are automatically skipped without affecting other plugin features.
+
+#### Auto Pass
+
+Automatically marks code blocks as "Passed" when conditions are met, helping you skip trivial changes:
 
 | Rule | Description | Default |
 |------|-------------|---------|
 | Import Statement Changes | Code block contains only import statement additions/removals | Enabled |
 | Blank Line/Whitespace Changes | Code block contains only whitespace or blank line changes | Enabled |
 | Comment Changes | Code block contains only comment changes | Enabled |
+| API Doc Annotation Changes — New | Code block contains only Swagger/OpenAPI documentation annotation changes | Enabled |
+| Spring Injection Field Changes — New | Code block contains only Spring auto-injection field (`@Autowired`/`@Resource`/`@Inject`) additions/modifications/removals | Enabled |
 | Rename Only | File was only renamed/moved with no content changes | Enabled |
 
-**Issue Rules** (automatically mark as "Issues" when conditions are met):
-
-
-| Rule | Description | Default |
-|------|-------------|---------|
-| Prohibit New import * | New wildcard import statements added | Enabled |
-| Hardcoded Secret Detection | Hardcoded passwords, API keys, tokens, etc. detected | Enabled |
-| Debug Code Leftover | `System.out.println`, `e.printStackTrace()`, etc. detected | Enabled |
-| TODO/FIXME Comment | New TODO, FIXME, etc. comments added | Enabled |
-| IDE Error Inspection | Errors detected by IDEA's built-in code inspections | Enabled |
-| IDE Warning Inspection | Warnings detected by IDEA's built-in code inspections | Enabled |
-| IDE Weak Warning Inspection | Weak warnings detected by IDEA's built-in code inspections | Enabled |
+**Combined matching**: When a code block contains multiple types of safe changes simultaneously (e.g., import adjustments + comment modifications + doc annotation changes) and no single rule can match independently, multiple pass rules collaborate to "strip" their respective safe content. If the old and new code are identical after stripping, the block is also automatically marked as passed. This extends auto-pass coverage to more real-world scenarios.
 
 ### Rule Configuration
 
 Go to `Settings` → `Tools` → `Code Review Plus`, in the Auto Review Settings panel:
 
 - **Global toggle**: Enable/disable the entire auto review feature
-- **Per-rule toggle**: Enable or disable each rule individually
 - **Skip Test Directories**: When enabled, skips files under `src/test/` and similar test directories
 - **Skip Document Files**: When enabled, skips `.md`, `.txt`, and other document files
+- **Categorized tree view**: Rules are grouped by Security / Code Quality / IDE Inspections / Spring Framework / Auto Pass — toggle each rule with a checkbox
+- **Search and filter**: Search by rule name, filter by programming language, or enable/disable all rules at once
 
 ### Execution Logic
 
@@ -444,13 +477,13 @@ When a comment's associated code block changes or is deleted after a branch upda
 
 These three rules leverage IDEA's built-in code inspection capabilities to analyze newly added code. They invoke all inspection tools loaded in IDEA (including inspections registered by third-party plugins such as SonarLint), running them on new code blocks and reporting issues. If you have code inspection plugins like SonarLint installed, their findings may also be captured by auto review.
 
+### Do Spring rules require additional configuration?
+
+No. Spring rules work out of the box in IntelliJ IDEA. The plugin analyzes Spring annotations and Bean definitions in your project to build the dependency graph — no Spring Boot plugin or runtime environment is needed.
+
 ### Does the plugin affect performance?
 
-The impact is minimal. Diff computation uses the Git command line, database operations are based on lightweight SQLite, and the UI only loads when the tool window is open. Batch database operations and asynchronous loading ensure the plugin won't slow down IDEA.
-
-### Which JetBrains IDEs are supported?
-
-Only IntelliJ IDEA (Community and Ultimate editions). Other JetBrains IDEs such as WebStorm, PyCharm, and GoLand are not supported.
+The impact is minimal. Diff computation uses the Git command line, database operations are based on lightweight SQLite, and the UI only loads when the tool window is open. The Spring Bean analysis cache used by Spring rules exists only during auto review execution and is automatically cleared afterward. Batch database operations and asynchronous loading ensure the plugin won't slow down IDEA.
 
 ---
 
