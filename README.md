@@ -10,7 +10,7 @@
 
 一款 IntelliJ IDEA 插件，通过会话管理、增量评审、自动化规则和评论系统，帮助你高效完成代码评审
 
-[![Version](https://img.shields.io/badge/version-3.3.0-blue.svg)](https://plugins.jetbrains.com/plugin/29361-code-review-plus)
+[![Version](https://img.shields.io/badge/version-3.5.0-blue.svg)](https://plugins.jetbrains.com/plugin/29361-code-review-plus)
 [![IDEA Version](https://img.shields.io/badge/IDEA-2025.2+-orange.svg)](https://www.jetbrains.com/idea/)
 
 </div>
@@ -259,7 +259,7 @@ Code Review Plus 采用 Freemium 模式：**当前仅自动评审功能需要许
 
 **查看评论**：点击 Diff 视图 Gutter 区域的评论图标查看单条评论详情，或切换到评论列表视图集中查看。
 
-**搜索评论**：在评论列表视图的搜索框中，输入评论编号（如 C1）可精确定位评论，也支持按文件名或路径模糊搜索。
+**搜索评论**：在评论列表视图的搜索框中，支持三种搜索方式：输入评论编号（如 C1）精确定位评论、按文件名或路径模糊搜索、按评论内容关键词模糊搜索。三种方式取并集，只要有一种匹配即显示。
 
 **状态流转**：待处理 → 无需处理 / 已处理。在评论面板或评论列表中修改。
 
@@ -275,65 +275,250 @@ Code Review Plus 采用 Freemium 模式：**当前仅自动评审功能需要许
 
 ### 内置规则
 
-规则按功能分为五大类，在设置面板中以分类树形式展示：
+规则按功能分为七大类，在设置面板中以分类树形式展示。
+
+---
 
 #### 安全 (Security)
 
-| 规则       | 说明                        | 默认状态 |
-|----------|---------------------------|------|
-| 硬编码密钥检测  | 检测到硬编码的密码、API Key、Token 等 | 启用   |
-| 禁止 import * | 新增了通配符 import 语句          | 启用   |
+##### 硬编码密钥检测
+
+检测代码中直接出现的敏感凭据字符串，防止密钥随代码提交泄漏。覆盖场景：
+
+- 密码字段赋值：`password = "abc123"`、`passwd = "P@ssw0rd"`
+- API Key / Token：`apiKey = "sk-xxxx"`、`token = "eyJxxx"`
+- JWT / 签名密钥：`secretKey = "jwt-secret"`、`signingKey = "..."`
+- 私钥 PEM 字符串：字面量中包含 `-----BEGIN PRIVATE KEY-----`
+- 各类凭据关键字：`credential`、`authorization`、`access_key`、`secret`、`auth_token` 等
+
+已排除的场景（降低误报）：
+
+- 注释行（`//`、`/*`、`*` 开头）
+- Swagger / OpenAPI 注解的 `example` 属性值，如 `@ApiModelProperty(example = "token_abc123")`
+- 变量名含 `PATTERN`、`REGEX`、`EXAMPLE`、`PLACEHOLDER` 关键词的常量（正则模式或示例占位符）
+
+##### 禁止通配符导入（import *）
+
+检测新增的通配符 `import` 语句，如 `import java.util.*`。通配符导入会引入包内所有类，导致命名冲突风险，且降低代码可读性。
+
+---
+
+#### 代码缺陷 (Code Defect)
+
+基于 IDEA PSI（程序结构接口）进行 Java 语义级分析，检测可能导致非预期行为的代码缺陷。
+
+> 本分类下所有规则依赖 Java PSI API，需在支持 Java 的 IDE（IntelliJ IDEA）中使用。
+
+##### 并发 Bug 检测
+
+检测 Spring Bean（单例）类中 `static` 非 `final` 的可变字段。Spring Bean 默认为单例，被所有请求共享，使用线程不安全类型的 `static` 字段会引发并发数据错误。
+
+适用类型：`@Service`、`@Component`、`@Repository`、`@Controller`、`@Configuration` 标注的类。
+
+覆盖场景：
+
+- **极高风险**：`static SimpleDateFormat`、`static Calendar`（线程不安全，并发格式化会互相干扰，导致日期错误）
+- **高风险**：`static HashMap`、`static ArrayList`、`static HashSet`（非线程安全集合被并发读写，导致数据丢失或异常）
+
+##### 条件路径空指针检测
+
+检测链式方法调用中，中间方法标注了 `@Nullable` 但返回值未经 null 保护直接继续调用的场景：
+
+```java
+// ❌ getUser() 标注 @Nullable，直接链式调用可能 NPE
+service.getUser(id).getName()
+
+// ✅ 安全写法
+User user = service.getUser(id);
+if (user != null) { user.getName(); }
+```
+
+已排除以下安全写法（不误报）：
+
+- `if (a.b() != null) { a.b().c(); }` — if 保护
+- `a.b() != null ? a.b().c() : null` — 三元表达式保护
+- `if (x != null && a.b() != null) { a.b().c(); }` — 复合条件保护
+
+##### 精度陷阱检测
+
+检测五类 BigDecimal 误用和三类数值精度问题：
+
+**BigDecimal 误用：**
+
+- `new BigDecimal(0.1)` — double 参数构造，实际值为 `0.1000000000000000055511...`；应使用 `BigDecimal.valueOf(0.1)` 或 `new BigDecimal("0.1")`
+- `a == b`（两侧均为 `BigDecimal`）— 引用相等比较，几乎必然为 `false`；应使用 `a.compareTo(b) == 0`
+- `a.equals(b)` 比较 `BigDecimal` — 同时比较值和精度，`new BigDecimal("1.0").equals(new BigDecimal("1.00"))` 返回 `false`；应使用 `compareTo`
+- `a.divide(b)`（仅一个参数）— 遇到非终止小数（如 1/3）时抛出 `ArithmeticException`；应使用 `a.divide(b, 2, RoundingMode.HALF_UP)`
+- `bigDecimal.intValue()` / `longValue()` — 直接截断小数，`new BigDecimal("3.99").intValue()` 返回 `3`，而非预期的四舍五入结果
+
+**浮点数比较：**
+
+- `if (a == 0.3)`（`a` 为 `double`）— IEEE 754 精度误差导致条件永远不成立；应使用 `Math.abs(a - 0.3) < 1e-9`
+
+**整数溢出：**
+
+- `long total = count * 1024 * 1024`（`count` 为 `int`）— 乘法在 `int` 范围内先溢出再赋给 `long`，精度已损失；应使用 `(long) count * 1024 * 1024`
+
+**前端 Long 序列化：**
+
+- VO/DTO 中返回前端的 `Long` 字段（如雪花 ID）未加 `@JsonSerialize(using = ToStringSerializer.class)` — JavaScript `Number` 类型最大安全整数为 2^53-1，超出范围会导致前端 ID 失真
+
+##### 循环内数据库查询检测（N+1）
+
+检测在循环体内直接发起数据库查询的场景。N+1 查询是性能事故的高发来源，但其他静态工具因无法同时理解"循环边界"和"DB 调用语义"而无法检测。
+
+识别的循环形态：
+
+- `for` / `while` / `do-while` / `for-each` — 标准 Java 循环
+- `.forEach(lambda)` / `.stream().map(lambda)` 等 Stream API 流操作
+
+DB 调用识别（仅使用结构性证据，不依赖方法名猜测）：
+
+- 类实现了 `JpaRepository` / `CrudRepository`（Spring Data JPA）
+- 类名以 `Mapper`、`Repository`、`Dao` 结尾
+- 方法标注了 `@Select`、`@Update`、`@Insert`、`@Delete`（MyBatis）
+
+> 此规则默认禁用，按需开启。
+
+---
 
 #### 代码质量 (Code Quality)
 
-| 规则         | 说明                                              | 默认状态 |
-|------------|-------------------------------------------------|------|
-| 调试代码残留     | 检测到 `System.out.println`、`e.printStackTrace()` 等 | 启用   |
-| TODO/FIXME | 新增了 TODO、FIXME 等注释                              | 启用   |
+##### 调试代码残留
 
-#### IDE 检查 (IDE Inspections)
+检测以下调试输出语句，防止遗留到生产代码：
 
-| 规则        | 说明              | 默认状态 |
-|-----------|-----------------|------|
-| IDE 错误检查  | 利用 IDEA 内置检查发现的错误 | 启用   |
-| IDE 警告检查  | 利用 IDEA 内置检查发现的警告 | 启用   |
-| IDE 弱警告检查 | 利用 IDEA 内置检查发现的弱警告 | 启用   |
+- `System.out.println(...)`
+- `System.err.println(...)`
+- `e.printStackTrace()`
+
+##### TODO / FIXME 注释
+
+检测新增的 `TODO`、`FIXME`、`HACK`、`XXX` 等标记注释。评审时用于确认这些待处理事项是否可以随当前代码提交，或是否需要在合并前完成。
+
+---
 
 #### Spring 框架 (Spring Framework)
 
-专为 Spring/Spring Boot 项目设计的深度分析规则。基于 IDEA 的 PSI（程序结构接口）对代码进行语义级分析，能发现人工评审中容易遗漏的框架使用问题：
+基于 PSI 语义分析，专为 Spring/Spring Boot 项目设计，能发现人工评审中容易遗漏的框架使用问题。
 
-| 规则                      | 说明                                                   | 默认状态 |
-|-------------------------|------------------------------------------------------|------|
-| Spring 循环依赖检测           | 检测 Bean 之间的循环依赖，覆盖构造器注入、字段注入、Setter 注入等场景            | 启用   |
-| Spring 注入问题检测           | 检测 Scope 错配、分层违反、模糊注入、可空注入未判空、未使用的注入字段               | 启用   |
-| `@Transactional` 使用问题检测 | 检测事务使用问题：注解失效（非 public、self-invocation、异常吞没、`@Async` 冲突等）、长事务（事务内 HTTP/RPC/MQ/Redis 等网络 IO，支持递归调用链分析） | 启用   |
+> 本分类下所有规则依赖 Java PSI API，在不含 Java 支持的 IDE 中自动跳过，不影响插件其他功能。
 
-> **提示**：Spring 规则依赖 Java PSI API，需要在支持 Java 的 IDE（IntelliJ IDEA）中使用。在不含 Java 支持的 IDE 中，这些规则自动跳过，不影响插件其他功能。
+##### Spring 循环依赖检测
+
+检测 Spring Bean 之间的循环依赖，按注入方式分级告警：
+
+- **构造器注入循环（严重）**：应用启动时直接抛出 `BeanCurrentlyInCreationException`，无法规避，必须重构
+- **`@Bean` 方法参数循环（严重）**：`@Configuration` 类中 `@Bean` 方法之间的参数依赖形成循环，同样会导致启动失败
+- **字段注入 / Setter 注入循环（警告）**：应用虽可启动，但存在初始化顺序不确定性，建议重构
+- **`@Lazy` 缓解的循环（提示）**：循环中至少一方加了 `@Lazy`，运行时可绕过，但仍提示潜在的设计问题
+
+##### Spring 注入问题检测
+
+检测六类常见的 Spring 注入问题：
+
+- **Scope 错配**：Prototype Bean 被注入到 Singleton Bean，Prototype 实例被单例缓存，每次请求不再创建新实例，语义与预期不符
+- **分层违反（Controller → Repository）**：Controller 直接依赖 Repository，跳过 Service 层的业务封装
+- **反向分层依赖**：Repository 的调用链路到达 Service 或 Controller、Service 的调用链路到达 Controller——下层调用上层，违反分层架构原则（通过调用图追踪最多 3 层）
+- **模糊注入**：接口有多个实现类，未通过 `@Primary` 或 `@Qualifier` 指定具体实现，运行时抛出 `NoUniqueBeanDefinitionException`
+- **可空注入未判空**：`@Autowired(required=false)` 字段在使用处未经 null 检查，当 Bean 不存在时导致 NPE
+- **未使用的注入字段**：注入的 Bean 在类中从未被引用，属于无效依赖，增加维护负担
+
+##### `@Transactional` 使用问题检测
+
+检测两大类问题：
+
+**注解失效场景（事务不生效）：**
+
+- **非 public 方法**：Spring AOP 基于代理，非 public 方法上的 `@Transactional` 不生效
+- **static / final 方法**：CGLIB 代理无法拦截 `static` 方法或 `final` 类的方法
+- **同类自调用**：`this.methodA()` 绕过代理，事务注解不起作用
+- **受检异常未配置 rollbackFor**：受检异常（`Exception` 子类）默认不触发回滚，需显式配置 `rollbackFor = Exception.class`
+- **catch 块吞没异常**：`try-catch` 捕获并消化了异常，事务感知不到异常，不会回滚
+- **`@Async` 冲突**：`@Async` 与 `@Transactional` 同时标注，异步方法运行在另一个线程，不在原事务上下文中
+
+**长事务（事务内网络 IO）：**
+
+递归分析 `@Transactional` 方法的调用链（最深 5 层），检测以下会延长事务连接持有时间的网络 IO 操作：
+
+- **HTTP 调用**：`RestTemplate`、`FeignClient` 等 HTTP 客户端发起的远程调用
+- **RPC 调用**：`@DubboReference` 标注的 Dubbo 远程调用
+- **MQ 消息发送**：`KafkaTemplate.send()`、`RocketMQTemplate.send()` 等（同步/异步均检测）
+- **Redis 操作**：`RedisTemplate` 及其链式操作（如 `opsForValue().set()`、`opsForHash().put()` 等）
+
+自动排除异步边界内的调用（传给 `Thread`/`ExecutorService`/`CompletableFuture` 的 lambda，以及 `@Async` 方法调用）。
+
+**事务传播语义误用：**
+
+- **`REQUIRES_NEW` 在事务内调用**：外层事务被挂起，内层事务独立提交；内层成功、外层回滚时，内层数据无法撤销，易导致数据不一致
+- **`NOT_SUPPORTED` 在事务内调用**：外层事务被挂起，方法在无事务环境中执行，操作无法回滚
+
+---
+
+#### Redis 规则 (Redis)
+
+专为 Redis 使用场景设计，覆盖 Java（Spring Data Redis / Jedis）、Kotlin 和 Go（go-redis）主流客户端。
+
+##### Redis 缓存击穿检测
+
+检测"缓存读 → 重载 → 写"模式中的击穿风险。通过 PSI 追踪三个关键要素：缓存读取调用（`query1`）、读取后首个赋值点（`p1`）、缓存写入调用（`set2`，支持跨方法追踪）。从 `p1` 到 `set2` 的重载代码块必须满足以下条件，否则告警：
+
+- **重载块未加锁**：高并发下多个线程会同时穿透缓存，重复查询数据库并写入缓存
+- **已加锁但无双重检查**：获取锁后未再次读取缓存确认是否已被其他线程更新，导致重复写入
+
+##### Redis 未设置 TTL 检测
+
+检测写入 Redis 时未设置过期时间的操作，防止 key 永久占用内存：
+
+- `ValueOperations.set(key, value)` — 2 参数形式（无 TTL），3/4 参数版本含 TTL，不告警
+- `ValueOperations.setIfAbsent(key, value)` — 2 参数形式，常用作分布式锁但缺少超时时间
+- `BoundValueOperations.set(value)` / `BoundValueOperations.setIfAbsent(value)` — 1 参数形式（无 TTL）
+- `setnx(key, value)` — 2 参数形式；第 3 个参数不为字面量 `0` 时视为已设置超时，不告警
+- `persist(key)` / `pPersist(key)` — 显式移除过期时间，使 key 变为永久存在
+- Go-redis：`client.Set(ctx, key, value, 0)` / `client.SetNX(ctx, key, value, 0)` — `duration=0` 表示永不过期
+
+##### Redis 危险命令检测
+
+检测三类危险 Redis 命令，支持方法调用和原生命令字符串两种形式：
+
+- **数据破坏命令**：`FLUSHDB`（清空当前数据库所有 key）、`FLUSHALL`（清空 Redis 实例全部 key）、`SHUTDOWN`（关闭 Redis 服务器）——严禁出现在业务代码中
+- **全量扫描命令（高并发/大数据量下阻塞服务器）**：
+  - `KEYS pattern` — O(N) 全量扫描 keyspace，应改用 `SCAN` 游标迭代
+  - `HGETALL key` — 一次返回 Hash 全量字段，字段数量大时响应体过大
+  - `SMEMBERS key` — 一次返回 Set 全量成员，成员数量大时同上
+
+---
+
+#### IDE 检查 (IDE Inspections)
+
+直接调用 IDEA 已加载的所有检查器（包括 SonarLint 等第三方插件），在新增代码块上运行并报告问题：
+
+- **IDE 错误检查**：报告 IDEA 内置检查发现的错误级别问题
+- **IDE 警告检查**：报告 IDEA 内置检查发现的警告级别问题
+- **IDE 弱警告检查**：报告 IDEA 内置检查发现的弱警告级别问题
+
+---
 
 #### 自动通过 (Auto Pass)
 
 符合条件时自动标记为"通过"，帮助跳过无关紧要的变更：
 
-| 规则              | 说明                                                    | 默认状态 |
-|-----------------|-------------------------------------------------------|------|
-| Import 变更       | 代码块仅包含 import 语句的增删                                   | 启用   |
-| 空格变更            | 代码块仅包含空格、空行的变更                                        | 启用   |
-| 注释变更            | 代码块仅包含注释的变更                                           | 启用   |
-| 文档注解变更 — 新增     | 代码块仅包含 Swagger/OpenAPI 文档注解的变更                        | 启用   |
-| Spring 注入属性变更 — 新增 | 代码块仅包含 Spring 自动注入字段（`@Autowired`/`@Resource`/`@Inject`）的增删改 | 启用   |
-| 重命名             | 文件仅重命名/移动但内容不变                                        | 启用   |
+- **Import 变更**：代码块仅包含 `import` 语句的增删
+- **空格 / 空行变更**：代码块仅包含空格、缩进、空行的调整
+- **注释变更**：代码块仅包含注释内容的增删改
+- **文档注解变更**：代码块仅包含 Swagger 2.x / OpenAPI 3.0 文档注解（`@Api`、`@ApiModelProperty`、`@Schema` 等）的变更
+- **Spring 注入属性变更**：代码块仅包含 `@Autowired` / `@Resource` / `@Inject` 注入字段的增删改，且无编译错误
+- **重命名**：文件仅重命名或移动，内容未发生变化
+- **文档和测试代码**：文档类型文件（`.md`、`.txt`、`.docx`、`.pdf` 等）以及测试目录（`src/test/`、`src/androidTest/`、`__tests__/` 等）下的代码变更，自动标记为通过，无需人工检查
 
-**组合匹配**：当一个代码块同时包含多种安全变更（如 import 调整 + 注释修改 + 文档注解变更），单条规则无法独立匹配时，多条通过规则会协作"剥离"各自负责的安全内容。如果剥离后新旧代码完全一致，该代码块也会被自动标记为通过。这让自动通过能力覆盖更多实际场景。
+**组合匹配**：当一个代码块同时包含多种安全变更（如 import 调整 + 注释修改 + 文档注解变更），单条规则无法独立匹配时，多条规则会协作"剥离"各自负责的内容。如果剥离后新旧代码完全一致，该代码块也会被自动标记为通过，覆盖更多实际场景。
 
 ### 规则配置
 
 进入 `Settings` → `Tools` → `Code Review Plus`，在自动评审规则面板中：
 
 - **全局开关**：启用/禁用整个自动评审功能
-- **跳过测试目录**：启用后自动跳过 `src/test/` 等测试目录
-- **跳过文档文件**：启用后自动跳过 `.md`、`.txt` 等文档文件
-- **分类树视图**：规则按 Security / Code Quality / IDE Inspections / Spring Framework / Auto Pass 五大类分组展示，勾选或取消即可启停
+- **分类树视图**：规则按 Security / Code Defect / Code Quality / Spring Framework / Redis / IDE Inspections / Auto Pass 七大类分组展示，勾选或取消即可启停
 - **搜索和筛选**：支持按规则名称搜索，按编程语言筛选，以及一键全部启用/禁用
 
 ### 规则执行逻辑
@@ -483,7 +668,7 @@ Code Review Plus 采用 Freemium 模式：**当前仅自动评审功能需要许
 
 ### 插件对性能有影响吗？
 
-影响极小。Diff 计算使用 Git 命令行，数据库操作基于轻量级 SQLite，UI 仅在打开工具窗口时加载。Spring 规则使用的 Bean 分析缓存仅在自动评审执行期间存在，执行结束后自动清理。批量数据库操作和异步加载等优化确保插件不会拖慢 IDEA。
+影响极小。Diff 计算使用 Git 命令行，数据库操作基于轻量级 SQLite，UI 仅在打开工具窗口时加载。PSI 语义分析规则（Spring、代码缺陷、Redis 等）使用的分析缓存仅在自动评审执行期间存在，执行结束后自动清理。批量数据库操作和异步加载等优化确保插件不会拖慢 IDEA。
 
 ---
 
