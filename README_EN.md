@@ -10,7 +10,7 @@
 
 An IntelliJ IDEA plugin that helps you review code efficiently with session management, incremental review, automated rules, and a comment system
 
-[![Version](https://img.shields.io/badge/version-3.3.0-blue.svg)](https://plugins.jetbrains.com/plugin/29361-code-review-plus)
+[![Version](https://img.shields.io/badge/version-3.5.0-blue.svg)](https://plugins.jetbrains.com/plugin/29361-code-review-plus)
 [![IDEA Version](https://img.shields.io/badge/IDEA-2025.2+-orange.svg)](https://www.jetbrains.com/idea/)
 
 </div>
@@ -259,7 +259,7 @@ Completion formula: (Passed + Issues) / Total × 100%
 
 **View comments**: Click the comment icon in the Diff view's gutter area to view a single comment's details, or switch to the Comment List view for a consolidated view.
 
-**Search comments**: In the Comment List view's search box, enter a comment number (e.g., C1) to locate a specific comment precisely, or search by file name or path.
+**Search comments**: In the Comment List view's search box, three search modes are supported: enter a comment number (e.g., C1) for exact match, search by file name or path, or search by comment content keywords. Results are a union of all matching modes.
 
 **Status transitions**: Pending → No Action Needed / Resolved. Change status in the comment panel or comment list.
 
@@ -275,65 +275,250 @@ Auto review uses predefined rules to batch-mark code block statuses, reducing ma
 
 ### Built-in Rules
 
-Rules are organized into five categories, displayed as a categorized tree in the settings panel:
+Rules are organized into seven categories, displayed as a categorized tree in the settings panel.
+
+---
 
 #### Security
 
-| Rule | Description | Default |
-|------|-------------|---------|
-| Hardcoded Secret Detection | Hardcoded passwords, API keys, tokens, etc. detected | Enabled |
-| Prohibit New import * | New wildcard import statements added | Enabled |
+##### Hardcoded Secret Detection
+
+Detects sensitive credential strings embedded directly in code, preventing secrets from leaking through commits. Covered scenarios:
+
+- Password assignments: `password = "abc123"`, `passwd = "P@ssw0rd"`
+- API Key / Token: `apiKey = "sk-xxxx"`, `token = "eyJxxx"`
+- JWT / signing keys: `secretKey = "jwt-secret"`, `signingKey = "..."`
+- Private key PEM strings: literals containing `-----BEGIN PRIVATE KEY-----`
+- Common credential keywords: `credential`, `authorization`, `access_key`, `secret`, `auth_token`, etc.
+
+Excluded scenarios (to reduce false positives):
+
+- Comment lines (starting with `//`, `/*`, or `*`)
+- Swagger / OpenAPI annotation `example` attribute values, e.g. `@ApiModelProperty(example = "token_abc123")`
+- Constants whose variable name contains `PATTERN`, `REGEX`, `EXAMPLE`, or `PLACEHOLDER` (regex patterns or placeholder values)
+
+##### Prohibit Wildcard Imports (import \*)
+
+Detects new wildcard `import` statements such as `import java.util.*`. Wildcard imports pull in all classes from a package, increasing the risk of naming conflicts and reducing code readability.
+
+---
+
+#### Code Defect
+
+Leverages IDEA's PSI (Program Structure Interface) for Java semantic-level analysis, detecting code defects that may cause unintended behavior and are easily missed in manual review.
+
+> All rules in this category depend on the Java PSI API and require a Java-capable IDE (IntelliJ IDEA).
+
+##### Concurrency Bug Detection
+
+Detects `static` non-`final` mutable fields inside Spring Bean classes (singletons). Because Spring Beans are singletons shared across all requests, using thread-unsafe types as `static` fields causes concurrent data corruption.
+
+Applies to classes annotated with: `@Service`, `@Component`, `@Repository`, `@Controller`, `@Configuration`.
+
+Covered scenarios:
+
+- **Critical risk**: `static SimpleDateFormat`, `static Calendar` — thread-unsafe; concurrent formatting causes date corruption
+- **High risk**: `static HashMap`, `static ArrayList`, `static HashSet` — non-thread-safe collections used as shared global state, leading to data loss or exceptions under concurrency
+
+##### Conditional Null Dereference Detection
+
+Detects chained method calls where an intermediate method is annotated `@Nullable` and its return value is used directly without a null guard:
+
+```java
+// ❌ getUser() is @Nullable — direct chaining may throw NPE
+service.getUser(id).getName()
+
+// ✅ Safe alternatives
+User user = service.getUser(id);
+if (user != null) { user.getName(); }
+```
+
+The following safe patterns are excluded (no false positives):
+
+- `if (a.b() != null) { a.b().c(); }` — explicit if guard
+- `a.b() != null ? a.b().c() : null` — ternary guard
+- `if (x != null && a.b() != null) { a.b().c(); }` — compound condition guard
+
+##### Precision Trap Detection
+
+Detects five BigDecimal misuse patterns and three additional numeric precision issues:
+
+**BigDecimal misuse:**
+
+- `new BigDecimal(0.1)` — double constructor causes precision loss; actual value is `0.1000000000000000055511...`; use `BigDecimal.valueOf(0.1)` or `new BigDecimal("0.1")` instead
+- `a == b` (both `BigDecimal`) — reference equality, almost always `false`; use `a.compareTo(b) == 0`
+- `a.equals(b)` for `BigDecimal` — compares both value and scale; `new BigDecimal("1.0").equals(new BigDecimal("1.00"))` returns `false`; use `compareTo`
+- `a.divide(b)` (single argument) — throws `ArithmeticException` on non-terminating decimals (e.g., 1/3); use `a.divide(b, 2, RoundingMode.HALF_UP)`
+- `bigDecimal.intValue()` / `longValue()` — truncates the fractional part without rounding; `new BigDecimal("3.99").intValue()` returns `3`
+
+**Floating-point comparison:**
+
+- `if (a == 0.3)` where `a` is `double` — IEEE 754 precision errors make this condition never true; use `Math.abs(a - 0.3) < 1e-9`
+
+**Integer overflow assigned to long:**
+
+- `long total = count * 1024 * 1024` where `count` is `int` — the multiplication overflows in `int` space before widening to `long`; use `(long) count * 1024 * 1024`
+
+**Long field frontend serialization:**
+
+- `Long` fields in VO/DTO classes (e.g., snowflake IDs) returned to the frontend without `@JsonSerialize(using = ToStringSerializer.class)` — JavaScript's `Number` type cannot safely represent values beyond 2^53-1, causing ID precision loss in the browser
+
+##### Loop Database Query Detection (N+1)
+
+Detects database queries issued inside loop boundaries — a leading cause of performance incidents that other static tools cannot detect because they cannot simultaneously understand loop scope and DB call semantics.
+
+Recognized loop forms:
+
+- `for` / `while` / `do-while` / `for-each` — standard Java loops
+- `.forEach(lambda)` / `.stream().map(lambda)` and other Stream API pipeline operations
+
+DB call identification (structural evidence only, no method name guessing):
+
+- Class implements `JpaRepository` / `CrudRepository` (Spring Data JPA)
+- Class name ends with `Mapper`, `Repository`, or `Dao`
+- Method is annotated with `@Select`, `@Update`, `@Insert`, or `@Delete` (MyBatis)
+
+> This rule is disabled by default. Enable it as needed.
+
+---
 
 #### Code Quality
 
-| Rule | Description | Default |
-|------|-------------|---------|
-| Debug Code Leftover | `System.out.println`, `e.printStackTrace()`, etc. detected | Enabled |
-| TODO/FIXME Comment | New TODO, FIXME, etc. comments added | Enabled |
+##### Debug Code Leftover
+
+Detects the following debug output statements that should not appear in production code:
+
+- `System.out.println(...)`
+- `System.err.println(...)`
+- `e.printStackTrace()`
+
+##### TODO / FIXME Comments
+
+Detects new `TODO`, `FIXME`, `HACK`, `XXX`, and similar marker comments. During review, these flag unresolved items that should be confirmed: can they be merged now, or must they be addressed before the PR is accepted?
+
+---
+
+#### Spring Framework
+
+Deep analysis rules designed for Spring/Spring Boot projects, using PSI semantic analysis to catch framework usage issues easily missed in manual review.
+
+> All rules in this category depend on the Java PSI API. In IDEs without Java support, they are automatically skipped without affecting other plugin features.
+
+##### Spring Circular Dependency Detection
+
+Detects circular dependencies between Spring Beans, with severity graded by injection type:
+
+- **Constructor injection cycle (Critical)**: throws `BeanCurrentlyInCreationException` at startup — cannot be bypassed, must be refactored
+- **`@Bean` method parameter cycle (Critical)**: `@Bean` methods in a `@Configuration` class depend on each other cyclically — also causes startup failure
+- **Field / Setter injection cycle (Warning)**: application starts but initialization order is non-deterministic; refactoring is recommended
+- **`@Lazy`-mitigated cycle (Info)**: at least one side uses `@Lazy` to break the cycle at runtime; flags the underlying design concern
+
+##### Spring Injection Issue Detection
+
+Detects six categories of common Spring injection problems:
+
+- **Scope mismatch**: a Prototype-scoped Bean is injected into a Singleton Bean, caching the Prototype instance and breaking per-request semantics
+- **Layer violation (Controller → Repository)**: Controller directly depends on Repository, bypassing the Service layer's business encapsulation
+- **Reverse layer dependency**: Repository's call chain reaches Service or Controller; Service's call chain reaches Controller — lower layers calling upper layers violates the layered architecture principle (traced up to 3 hops via call graph)
+- **Ambiguous injection**: an interface has multiple implementations without `@Primary` or `@Qualifier` — throws `NoUniqueBeanDefinitionException` at runtime
+- **Nullable injection without null check**: an `@Autowired(required=false)` field is accessed without a null check — throws NPE when the Bean is absent
+- **Unused injected field**: an injected Bean is never referenced anywhere in the class — dead dependency that adds unnecessary maintenance burden
+
+##### `@Transactional` Misuse Detection
+
+Detects two categories of `@Transactional` misuse:
+
+**Annotation ineffectiveness (transaction silently not applied):**
+
+- **Non-public method**: Spring AOP proxies cannot intercept non-public methods; the annotation has no effect
+- **`static` / `final` method**: CGLIB proxies cannot override `static` methods or methods of `final` classes
+- **Self-invocation**: calling a transactional method via `this.method()` bypasses the proxy entirely
+- **Checked exception without `rollbackFor`**: checked exceptions do not trigger rollback by default; must configure `rollbackFor = Exception.class`
+- **Swallowed exception in catch block**: the exception is caught and suppressed inside the method, so Spring never sees it and does not roll back
+- **`@Async` conflict**: `@Async` and `@Transactional` on the same method causes the async thread to run outside the original transaction context
+
+**Long transaction (network I/O inside transaction):**
+
+Recursively analyzes the call chain of `@Transactional` methods (up to 5 levels deep) for network I/O operations that hold the database connection longer than necessary:
+
+- **HTTP calls**: `RestTemplate`, `FeignClient`, and similar HTTP clients
+- **RPC calls**: Dubbo `@DubboReference` remote calls
+- **MQ message sends**: `KafkaTemplate.send()`, `RocketMQTemplate.send()`, etc. (both sync and async sends are detected)
+- **Redis operations**: `RedisTemplate` and chained operations (e.g., `opsForValue().set()`, `opsForHash().put()`)
+
+Async boundaries are automatically excluded: calls inside lambdas passed to `Thread`/`ExecutorService`/`CompletableFuture`, and calls to `@Async`-annotated methods.
+
+**Propagation semantic misuse:**
+
+- **`REQUIRES_NEW` called inside a transaction**: the outer transaction is suspended; the inner transaction commits independently — if the outer later rolls back, the inner commit cannot be undone, causing data inconsistency
+- **`NOT_SUPPORTED` called inside a transaction**: the outer transaction is suspended and the method runs without a transaction — operations inside cannot be rolled back
+
+---
+
+#### Redis
+
+Designed for Redis usage issues, supporting Java (Spring Data Redis / Jedis), Kotlin, and Go (go-redis).
+
+##### Redis Cache Breakdown Detection
+
+Detects cache breakdown risk in the "cache read → reload → write" pattern. The rule tracks three key elements via PSI: the cache read call (`query1`), the first assignment after the cache miss (`p1`), and the cache write call (`set2`, traced across method boundaries). The reload block from `p1` to `set2` must satisfy both conditions below, otherwise an alert is raised:
+
+- **Reload block unprotected by a lock**: under high concurrency, multiple threads simultaneously miss the cache, causing a stampede to the database
+- **Locked but no double-check**: after acquiring the lock, the cache is not re-read to confirm whether another thread has already rebuilt it, causing redundant writes
+
+##### Redis Missing TTL Detection
+
+Detects Redis write operations that do not set an expiration time, preventing keys from permanently consuming memory:
+
+- `ValueOperations.set(key, value)` — 2-arg form (no TTL); 3/4-arg forms include TTL and are not flagged
+- `ValueOperations.setIfAbsent(key, value)` — 2-arg form; commonly misused as a distributed lock without a timeout
+- `BoundValueOperations.set(value)` / `BoundValueOperations.setIfAbsent(value)` — 1-arg forms (no TTL)
+- `setnx(key, value)` — 2-arg form; if the third argument is present and not the literal `0`, it is treated as a timeout and not flagged
+- `persist(key)` / `pPersist(key)` — explicitly removes the expiration time, making the key permanent
+- Go-redis: `client.Set(ctx, key, value, 0)` / `client.SetNX(ctx, key, value, 0)` — `duration=0` means never expire
+
+##### Redis Dangerous Command Detection
+
+Detects three categories of dangerous Redis commands, in both method call and raw command string forms:
+
+- **Data destruction commands** (must never appear in business code): `FLUSHDB` (wipes the current database), `FLUSHALL` (wipes the entire Redis instance), `SHUTDOWN` (shuts down the Redis server)
+- **Full-scan commands** (block the server under large datasets):
+  - `KEYS pattern` — O(N) keyspace scan; use `SCAN` cursor iteration instead
+  - `HGETALL key` — returns all fields of a Hash in one response; prohibitively large when the Hash has many fields
+  - `SMEMBERS key` — returns all members of a Set in one response; same concern as `HGETALL`
+
+---
 
 #### IDE Inspections
 
-| Rule | Description | Default |
-|------|-------------|---------|
-| IDE Error Inspection | Errors detected by IDEA's built-in code inspections | Enabled |
-| IDE Warning Inspection | Warnings detected by IDEA's built-in code inspections | Enabled |
-| IDE Weak Warning Inspection | Weak warnings detected by IDEA's built-in code inspections | Enabled |
+Invokes all inspection tools already loaded in IDEA (including third-party plugins such as SonarLint) and runs them against newly added code blocks:
 
-#### Spring Framework — New
+- **IDE Error Inspection**: reports error-level findings from IDEA's built-in inspections
+- **IDE Warning Inspection**: reports warning-level findings from IDEA's built-in inspections
+- **IDE Weak Warning Inspection**: reports weak-warning-level findings from IDEA's built-in inspections
 
-Deep analysis rules designed specifically for Spring/Spring Boot projects. Leverages IDEA's PSI (Program Structure Interface) for semantic-level code analysis, catching framework usage issues that are easily missed during manual reviews:
-
-| Rule | Description | Default |
-|------|-------------|---------|
-| Spring Circular Dependency Detection | Detects circular dependencies between Beans, covering constructor injection, field injection, setter injection, and more | Enabled |
-| Spring Injection Issue Detection | Detects scope mismatch, layer violation, ambiguous injection, nullable injection without null check, and unused injected fields | Enabled |
-| `@Transactional` Misuse Detection | Detects transaction misuse: annotation ineffectiveness (non-public methods, self-invocation, swallowed exceptions, `@Async` conflicts, etc.) and long transactions (network I/O inside transactions — HTTP/RPC/MQ/Redis — with recursive call chain analysis) | Enabled |
-
-> **Note**: Spring rules depend on the Java PSI API and require a Java-capable IDE (IntelliJ IDEA). In IDEs without Java support, these rules are automatically skipped without affecting other plugin features.
+---
 
 #### Auto Pass
 
 Automatically marks code blocks as "Passed" when conditions are met, helping you skip trivial changes:
 
-| Rule | Description | Default |
-|------|-------------|---------|
-| Import Statement Changes | Code block contains only import statement additions/removals | Enabled |
-| Blank Line/Whitespace Changes | Code block contains only whitespace or blank line changes | Enabled |
-| Comment Changes | Code block contains only comment changes | Enabled |
-| API Doc Annotation Changes — New | Code block contains only Swagger/OpenAPI documentation annotation changes | Enabled |
-| Spring Injection Field Changes — New | Code block contains only Spring auto-injection field (`@Autowired`/`@Resource`/`@Inject`) additions/modifications/removals | Enabled |
-| Rename Only | File was only renamed/moved with no content changes | Enabled |
+- **Import Statement Changes**: code block contains only `import` statement additions or removals
+- **Blank Line / Whitespace Changes**: code block contains only whitespace, indentation, or blank line adjustments
+- **Comment Changes**: code block contains only comment additions, removals, or edits
+- **API Doc Annotation Changes**: code block contains only Swagger 2.x / OpenAPI 3.0 annotation changes (`@Api`, `@ApiModelProperty`, `@Schema`, etc.)
+- **Spring Injection Field Changes**: code block contains only `@Autowired` / `@Resource` / `@Inject` field additions/modifications/removals, with no compile errors
+- **Rename Only**: file was renamed or moved with no content changes
+- **Document and Test Files**: document files (`.md`, `.txt`, `.docx`, `.pdf`, etc.) and code under test directories (`src/test/`, `src/androidTest/`, `__tests__/`, etc.) are automatically marked as passed — no manual review needed
 
-**Combined matching**: When a code block contains multiple types of safe changes simultaneously (e.g., import adjustments + comment modifications + doc annotation changes) and no single rule can match independently, multiple pass rules collaborate to "strip" their respective safe content. If the old and new code are identical after stripping, the block is also automatically marked as passed. This extends auto-pass coverage to more real-world scenarios.
+**Combined matching**: When a code block contains multiple safe change types simultaneously (e.g., import adjustments + comment edits + doc annotation changes) and no single rule can match independently, multiple rules collaborate to "strip" their respective safe content. If the remaining old and new code are identical, the block is also automatically marked as passed — extending auto-pass coverage to more real-world scenarios.
 
 ### Rule Configuration
 
 Go to `Settings` → `Tools` → `Code Review Plus`, in the Auto Review Settings panel:
 
 - **Global toggle**: Enable/disable the entire auto review feature
-- **Skip Test Directories**: When enabled, skips files under `src/test/` and similar test directories
-- **Skip Document Files**: When enabled, skips `.md`, `.txt`, and other document files
-- **Categorized tree view**: Rules are grouped by Security / Code Quality / IDE Inspections / Spring Framework / Auto Pass — toggle each rule with a checkbox
+- **Categorized tree view**: Rules are grouped by Security / Code Defect / Code Quality / Spring Framework / Redis / IDE Inspections / Auto Pass — toggle each rule with a checkbox
 - **Search and filter**: Search by rule name, filter by programming language, or enable/disable all rules at once
 
 ### Execution Logic
@@ -483,7 +668,7 @@ No. Spring rules work out of the box in IntelliJ IDEA. The plugin analyzes Sprin
 
 ### Does the plugin affect performance?
 
-The impact is minimal. Diff computation uses the Git command line, database operations are based on lightweight SQLite, and the UI only loads when the tool window is open. The Spring Bean analysis cache used by Spring rules exists only during auto review execution and is automatically cleared afterward. Batch database operations and asynchronous loading ensure the plugin won't slow down IDEA.
+The impact is minimal. Diff computation uses the Git command line, database operations are based on lightweight SQLite, and the UI only loads when the tool window is open. The analysis caches used by PSI semantic analysis rules (Spring, Code Defect, Redis, etc.) exist only during auto review execution and are automatically cleared afterward. Batch database operations and asynchronous loading ensure the plugin won't slow down IDEA.
 
 ---
 
