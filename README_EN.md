@@ -8,9 +8,9 @@
 
 **Dedicated to making code reviews easier**
 
-An IntelliJ IDEA plugin that helps you review code efficiently with session management, incremental review, automated rules, and a comment system
+An IntelliJ IDEA plugin that helps you review code efficiently with session management, incremental review, AI-powered review, automated rules, and a comment system
 
-[![Version](https://img.shields.io/badge/version-3.5.0-blue.svg)](https://plugins.jetbrains.com/plugin/29361-code-review-plus)
+[![Version](https://img.shields.io/badge/version-4.0.0-blue.svg)](https://plugins.jetbrains.com/plugin/29361-code-review-plus)
 [![IDEA Version](https://img.shields.io/badge/IDEA-2025.2+-orange.svg)](https://www.jetbrains.com/idea/)
 
 </div>
@@ -26,6 +26,7 @@ An IntelliJ IDEA plugin that helps you review code efficiently with session mana
 - [Quick Start](#quick-start)
 - [User Guide](#user-guide)
 - [Auto Review Rules [Premium]](#auto-review-rules-premium)
+- [AI Review [Premium]](#ai-review-premium)
 - [Report Export & Import](#report-export--import)
 - [Plugin Settings](#plugin-settings)
 - [Best Practices](#best-practices)
@@ -38,21 +39,26 @@ An IntelliJ IDEA plugin that helps you review code efficiently with session mana
 
 Common pain points during code reviews:
 
-- **Interrupted mid-review** — you come back and can't remember what you've already reviewed
-- **New commits on the branch** — unsure if your previous review is still valid, so you start over
-- **Too many changed files** — you want to review in batches but have no way to track progress
-- **Want to flag issues** — but don't want to clutter the PR with scattered comments
-- **Noise from trivial changes** — import reordering, code formatting, blank line adjustments... these mix in with real business logic, forcing you to manually verify each one is "fine", wasting review time on noise
+- **Interrupted mid-review** — you come back and can't remember what you've already checked
+- **New commits on the branch** — unsure if your previous review still holds, so you start over
+- **Issues found but lost in follow-up** — tracked in scattered notes, fixed or not remains unclear
+- **Noise from trivial changes** — import reordering, formatting, blank lines mixed with real logic, forcing you to verify each one manually
 
-Code Review Plus solves these problems simply: **track review progress directly in IDEA, and use automated rules to filter out noise**.
+Code Review Plus addresses these from four directions:
 
-Every code block you've reviewed, every status you've marked, every comment you've written is automatically saved locally. When the branch updates, the system intelligently identifies what changed and what didn't — you only need to focus on new and modified code. For trivial changes like import adjustments and formatting, as well as obvious issues like hardcoded secrets and leftover debug code, auto review rules handle them in one click, letting you spend your time on code that actually requires thought.
+**Automated review — filter noise, surface deep issues**: Auto review rules skip import adjustments, whitespace changes, and other noise in one click. AI Review runs three expert agents in parallel to automatically detect coding defects, security vulnerabilities, and database risks — issues that would otherwise take hours to find manually.
+
+**Persistent progress — no interruptions, no omissions**: Every code block's review status is saved locally and restored instantly after IDEA restarts. Whether you review in batches or step away mid-session, you always know exactly where you left off.
+
+**Incremental updates — pinpoint what actually changed**: When new commits land on the branch, click refresh. The system identifies which code truly changed — already-reviewed blocks keep their status, only new and modified code needs another look. No starting over.
+
+**Trackable comments — no issue slips through**: Each comment carries a Pending / No Action Needed / Resolved status and persists through branch updates. Export a report and the developer works through every comment one by one, closing the review loop completely.
 
 ### Who Should Use This
 
-**Developers**: Use it for self-review before submitting code to testers or reviewers. Create a review session, check your own changes one by one — you can even review as you develop, marking off sections as you complete them to avoid missing details in a final bulk review.
+**Developers**: Self-review before submitting. Use auto review to strip format noise and AI Review to catch security risks and coding issues before delivery — fix problems before reviewers even see them, eliminating unnecessary back-and-forth.
 
-**Reviewers**: When facing a large number of changed files, use auto review to filter out noise first, then review in batches with progress saved at all times. Write comments directly on issues you find. After review, export a report and send it to the developer, who can view and fix issues one by one in their own IDEA — no back-and-forth communication needed.
+**Reviewers**: Let AI and auto rules do the first pass — common issues are flagged automatically. You focus only on the code that truly requires judgment. Review time drops significantly. Progress is always saved, comments are trackable, and a one-click report export completes the collaboration loop.
 
 ---
 
@@ -122,6 +128,25 @@ Automatically mark code block statuses based on predefined rules. For example:
 
 Auto review helps you skip trivial changes and focus on code that truly needs attention. Rules can be freely enabled and disabled in settings.
 
+### AI Review [Premium] ✨ New in v4.0
+
+Powered by **Claude Code CLI + MCP Server** architecture, AI Review lets AI autonomously perform code review. The plugin launches a local MCP HTTP Server, and Claude Code CLI subprocesses connect via tool calls to retrieve diff content, read source files, and submit findings — no human intervention required.
+
+Three expert agents run in parallel, covering different dimensions:
+
+- **Code Quality Review Expert**: Detects null pointer risks, resource leaks, swallowed exceptions, concurrency hazards, missing enum fallbacks, serialization compatibility, logging anti-patterns, and more
+- **Security & Stability Review Expert**: Detects missing XSS/CSRF protection, SQL/command/path traversal/XXE/SSRF injection, auth bypass, privilege escalation, hardcoded secrets, sensitive data exposure, and more
+- **Database Review Expert**: Detects N+1 queries, large table queries without pagination, leading-wildcard LIKE, function calls on indexed columns, unconditional full-table updates/deletes, oversized IN lists, and more
+
+AI Review supports **full session review** (all unreviewed blocks) and **partial review** (right-click selected files). Progress is streamed in real time to an output dialog with one tab per expert.
+
+Advantages of using AI Review within the plugin:
+1. Building on auto review — a large portion of diffs have already been marked as auto-passed. When the AI retrieves content via the MCP server, these blocks are excluded, reducing the volume of code the AI needs to process.
+2. Comments created before AI Review starts are passed to the AI via the MCP server. The AI uses this information to avoid re-flagging already-discovered issues while helping surface additional problems.
+3. After review, the AI submits its findings via the MCP server. This makes review artifact management straightforward and provides data support for future re-reviews.
+
+> **Prerequisites**: Claude Code CLI must be installed and logged in. See the [AI Review](#ai-review-premium) section for details.
+
 ### Report Export & Import
 
 Export review results as an HTML report containing review progress, code diffs, and all comments. The report can be sent to the branch developer, who can import it directly into their own IDEA to view the reviewer's comments and fix issues one by one.
@@ -132,11 +157,11 @@ Recommended collaboration workflow: **Reviewer flags issues → Exports report �
 
 ## Free & Paid
 
-Code Review Plus uses a Freemium model: **only the Auto Review feature requires a license**. All other features (session management, status tracking, incremental review, comment system, report export & import, etc.) are free to use.
+Code Review Plus uses a Freemium model: **Auto Review and AI Review require a license**. All other features (session management, status tracking, incremental review, comment system, report export & import, etc.) are free to use.
 
 Our commitment: **existing free features will always remain free, with no license restrictions added in the future**. You can use them with confidence.
 
-The Auto Review feature comes with a 30-day trial period automatically activated upon installation from JetBrains Marketplace. After the trial expires, you can purchase a license on the Marketplace to continue using it. If you'd like an extended trial period, please contact us by email with your reason, and we'll consider providing a free license.
+Premium features come with a 30-day trial period automatically activated upon installation from JetBrains Marketplace. After the trial expires, you can purchase a license on the Marketplace to continue using them. If you'd like an extended trial period, please contact us by email with your reason, and we'll consider providing a free license.
 
 ---
 
@@ -230,7 +255,8 @@ After completing the review, click the export button in the toolbar to save the 
 | <img src="images/add.svg" width="16" height="16"> | New Session | Create a new review session or import from a report |
 | <img src="images/refresh.svg" width="16" height="16"> | Refresh | Incrementally update the current session's diff data |
 | <img src="images/delete.svg" width="16" height="16"> | Delete Session | Delete the current session and all associated data |
-| <img src="images/run.svg" width="16" height="16"> | Auto Review | Run auto review rules on the current session |
+| <img src="images/run.svg" width="16" height="16"> | Auto Review | Run predefined auto review rules on the current session (fast, rule-based) |
+| <img src="images/run.svg" width="16" height="16"> | AI Review | Start AI review — Claude Code CLI reviews all unreviewed blocks autonomously [Premium] |
 | <img src="images/show.svg" width="16" height="16"> | Switch View | Toggle between Diff Block List and Comment List |
 | <img src="images/filter.svg" width="16" height="16"> | Filter | Filter files by review status or change type |
 | <img src="images/export.svg" width="16" height="16"> | Export Report | Export review results as an HTML report |
@@ -439,7 +465,7 @@ Detects two categories of `@Transactional` misuse:
 
 **Long transaction (network I/O inside transaction):**
 
-Recursively analyzes the call chain of `@Transactional` methods (up to 5 levels deep) for network I/O operations that hold the database connection longer than necessary:
+Recursively analyzes the call chain of `@Transactional` methods for network I/O operations that hold the database connection longer than necessary:
 
 - **HTTP calls**: `RestTemplate`, `FeignClient`, and similar HTTP clients
 - **RPC calls**: Dubbo `@DubboReference` remote calls
@@ -528,6 +554,156 @@ Go to `Settings` → `Tools` → `Code Review Plus`, in the Auto Review Settings
 
 ---
 
+## AI Review [Premium]
+
+AI Review uses **Claude Code CLI** combined with the plugin's embedded **MCP Server** to perform fully autonomous code review. Three expert agents run in parallel across the code quality, security, and database dimensions, automatically surfacing deep issues that are easy to miss manually.
+
+### Prerequisites
+
+Before using AI Review, confirm the following are in place:
+
+**1. Claude Code CLI is installed and configured locally**
+
+Follow the [official Claude Code documentation](https://docs.anthropic.com/en/docs/claude-code/getting-started) to install and log in.
+
+**2. Verify availability from the command line**
+
+Open a terminal and run:
+```bash
+claude --version   # confirms the command is found
+claude -p "hi"     # confirms login is valid; should return a normal response
+```
+
+If both commands succeed, the environment is ready and the plugin can use it directly.
+
+**3. Verify connectivity from the plugin settings**
+
+Go to `Settings → Tools → Code Review Plus → AI Review`, then click the **Validate** button next to "Claude Start Command". The plugin will run `claude --version` to check whether the binary is reachable.
+
+If the command works in terminal but the plugin validation fails, this is usually because IDEA's `PATH` differs from your shell's. In that case, set "Claude Start Command" to the full path of the binary (e.g., `/usr/local/bin/claude`).
+
+**4. Valid Premium license**
+
+AI Review is a premium feature and requires a valid Code Review Plus Premium license.
+
+**⚠️ Data Security Notice**
+
+AI Review sends your code's diff content to the Claude API for analysis. **Before using this feature, ensure it complies with your organization's data security policies**, including but not limited to: code confidentiality agreements and data transfer restrictions. If in doubt, consult your internal security team or legal department first.
+
+### How It Works
+
+```
+IDEA Plugin
+  │
+  ├─ Starts MCP HTTP Server (localhost:random port)
+  │    └─ Provides 3 tools: start_review / get_review_blocks / submit_problem
+  │
+  └─ Starts 3 Claude Code CLI subprocesses in parallel
+       ├─ Code Quality Review Expert Agent
+       ├─ Security & Stability Review Expert Agent
+       └─ Database Review Expert Agent
+            │
+            └─ Each agent makes MCP tool calls:
+                 1. start_review → get the file manifest
+                 2. get_review_blocks → get diff content & semantic summaries
+                 3. Read/Grep source files → verify findings
+                 4. submit_problem → submit confirmed issues
+```
+
+Issues found by each agent are automatically committed to the plugin database and trigger a UI refresh. Problem blocks are marked with "Auto Issues" status.
+
+### Usage
+
+#### Full AI Review
+
+Click the **AI Review** button in the toolbar to review all unreviewed code blocks in the current session.
+
+#### Partial AI Review
+
+Right-click one or more file nodes in the file tree and select **AI Review Selected Files** to review only those files.
+
+#### Real-Time Output
+
+Once review starts, a live output dialog appears with three tabs (Code Quality, Security & Stability, Database), each streaming the corresponding agent's log. Tool calls are shown in a compact format (`● start_review()`, `● submit_problem()`). A completion summary with duration and cost is displayed when each agent finishes.
+
+If the dialog is minimized, a notification with a "View Output" action lets you reopen it at any time.
+
+### What Gets Reviewed
+
+AI Review only processes **UNREVIEWED** blocks. Blocks already marked as Passed or Issues are skipped. Use the status filter before starting to confirm which blocks are unreviewed.
+
+### Configuration
+
+Go to `Settings → Tools → Code Review Plus → AI Review`:
+
+**Global Settings**
+
+| Setting | Description | Default |
+|---------|-------------|---------|
+| Enable AI Review | Global on/off switch | Enabled |
+| Claude Start Command | Path to the claude binary; use full path if `claude` isn't in PATH | `claude` |
+| Model | Claude model to use (e.g. `claude-opus-4-5`); leave blank to use the CLI default | Blank (CLI default) |
+| Prompt Language | Output language for review findings: `zh` for Chinese, `en` for English | Follows IDE locale |
+| Timeout (minutes) | Maximum wait time per session; leave blank for adaptive timeout (5 min per 50 files, min 5 min) | Adaptive |
+
+**Project-Level Settings**
+
+| Setting | Description | Default |
+|---------|-------------|---------|
+| Enable Code Quality Review Expert | Enable/disable the code quality review agent; recommended for all projects — covers logic issues, boundary cases, exception handling, and more | Enabled |
+| Enable Security & Stability Review Expert | Enable/disable the security & stability review agent; recommended for all projects — covers injection vulnerabilities, memory leaks, infinite loops, sensitive data exposure, and more | Enabled |
+| Enable Database Review Expert | Enable/disable the database review agent; recommended for projects using a database — covers slow queries, large result sets, large/long transactions, and more | Enabled |
+| Custom Rules | Project-specific coding conventions injected into expert system prompts | Empty |
+
+### Custom Rules
+
+Custom rules are project-level and let teams add extra review requirements for the AI experts. For example:
+
+```
+1. All public API endpoint parameters must be validated with @Valid
+2. Never use HttpServletRequest/Response directly in the Service layer — pass context instead
+3. Database query method names must start with query/get/find/count
+```
+
+These notes are injected into all three experts' system prompts simultaneously. Each expert processes the rules accordingly.
+
+### What Each Expert Reviews
+
+> **Note:** Although each expert's system prompt specifies a primary focus area, the AI is not strictly limited to that category. Because AI behavior is not fully predictable, the boundaries between experts are not perfectly distinct — overlap is possible. For example, multiple experts may independently flag the same issue, and this cannot be completely eliminated.
+
+#### Code Quality Review Expert
+
+Focused on coding standards and code quality, for example:
+
+- **Input validation**: Public method boundary checks, null checks on external service responses, null guards on chained calls, Optional.get() protection
+- **Resource management**: Correct closure of locks, connections, and IO streams on all execution paths
+- **Exception handling**: No silent swallowing, correct propagation in async contexts, log level matches severity
+- **Concurrency**: Non-thread-safe object access, thread usage patterns, idempotency checks
+- **Enum/state handling**: Missing default/else branch in switch/if-else blocks
+- **Serialization compatibility**: New/old version compatibility when adding/removing fields in RPC or MQ message types
+
+#### Security & Stability Review Expert
+
+Focused on security vulnerabilities and stability risks, for example:
+
+- **Injection prevention**: SQL injection (MyBatis `${}`), command injection, path traversal, XXE, SSRF
+- **Auth & access control**: Horizontal privilege escalation (missing ownership validation), auth bypass
+- **Data security**: Sensitive data in plaintext logs, sensitive fields exposed in responses
+- **Interface protection**: Missing XSS/CSRF defense, insecure deserialization
+- **Cryptography**: Weak algorithms (MD5/SHA-1 for password storage), hardcoded secrets
+
+#### Database Review Expert
+
+Focused on database operation issues, for example:
+
+- **N+1 queries**: Database calls inside loops
+- **Large table risks**: Unconditional full-table queries/updates/deletes, large table queries without pagination
+- **Index invalidation**: Leading-wildcard LIKE (`LIKE '%xxx'`), functions on indexed columns
+- **Oversized result sets**: Very large IN lists (typically > 1000 elements)
+- **High-frequency interfaces**: `SELECT *` in frequently called endpoints
+
+---
+
 ## Report Export & Import
 
 The export and import features are designed to bridge the collaboration gap between reviewers and developers. After completing a review, the reviewer exports a report. The developer imports the report into their own IDEA to see all comments and fix issues one by one. Once fixes are committed, the reviewer pulls the latest code and refreshes the review session to confirm whether issues have been resolved.
@@ -577,6 +753,7 @@ Go to `Settings` → `Tools` → `Code Review Plus` to configure:
 | Branch Update Check | Automatically detect new remote branch commits and show a reminder | On |
 | Default Export Directory | Choose between relative path or fixed path | Relative |
 | Auto Review Rule Settings | Configure auto review rule toggles and global options | See above |
+| AI Review Settings | Configure Claude Code CLI command, model, expert toggles, and custom rules | See above |
 
 ---
 
@@ -587,11 +764,12 @@ Go to `Settings` → `Tools` → `Code Review Plus` to configure:
 **Recommended workflow**:
 
 1. **Create session** → Select the feature branch and master/develop branch
-2. **Run auto review** → Let rules automatically handle whitespace, import, and other trivial changes
-3. **Review file by file** → Start with unreviewed files, double-click to open the Diff view
-4. **Mark status + write comments** → Mark passing code as Passed, flag issues as Issues with comments
-5. **Refresh periodically** → Refresh when the branch has new commits, focus only on changes
-6. **Export report** → After review, export for archiving or send to the developer for import
+2. **Run auto review** → Let rules automatically handle whitespace, import, and other trivial changes (fast, seconds)
+3. **Run AI review** → Let AI automatically surface code quality, security, and SQL issues (requires Claude Code CLI)
+4. **Review file by file** → Start with unreviewed files, double-click to open the Diff view; focus on what AI didn't flag
+5. **Mark status + write comments** → Mark passing code as Passed, flag issues as Issues with comments
+6. **Refresh periodically** → Refresh when the branch has new commits, focus only on changes
+7. **Export report** → After review, export for archiving or send to the developer for import
 
 ### Large Branch Review Strategy
 
@@ -669,6 +847,38 @@ No. Spring rules work out of the box in IntelliJ IDEA. The plugin analyzes Sprin
 ### Does the plugin affect performance?
 
 The impact is minimal. Diff computation uses the Git command line, database operations are based on lightweight SQLite, and the UI only loads when the tool window is open. The analysis caches used by PSI semantic analysis rules (Spring, Code Defect, Redis, etc.) exist only during auto review execution and are automatically cleared afterward. Batch database operations and asynchronous loading ensure the plugin won't slow down IDEA.
+
+### Does AI Review require an internet connection?
+
+Yes. AI Review invokes Claude Code CLI, which connects to the Anthropic API server. The plugin itself (MCP Server and database) runs entirely locally — only the Claude Code CLI subprocess makes outbound API requests to Anthropic.
+
+### Does AI Review incur API costs?
+
+Yes. AI Review consumes Anthropic Claude API tokens, which incur charges. Actual costs depend on code volume and the model selected — typically $0.01–$0.50 per review session. The output dialog shows the total cost for each completed session.
+
+### How long does AI Review take?
+
+It depends on code volume and the number of enabled experts. A session with 20–50 files typically takes 5–15 minutes with all three experts running in parallel. The plugin provides adaptive timeout (5 minutes per 50 files) and you can also set a manual timeout in settings.
+
+### What's the difference between AI Review and Auto Review?
+
+| Dimension | Auto Review | AI Review |
+|-----------|-------------|-----------|
+| Implementation | Predefined rules, static analysis | Claude AI large model inference |
+| Speed | Seconds | Minutes |
+| Understanding | Pattern matching, no context | Understands semantics and business logic |
+| Coverage | Fixed rule set | Flexible, discovers novel issues |
+| Cost | Free | Incurs API charges |
+| Recommended order | Run first, quickly filter noise | Run second, deep-dive into standards and security |
+
+### AI Review says "branch mismatch" — what do I do?
+
+AI Review validates that the current Git branch matches the review session's branch. If they don't match, switch to the session's branch with `git checkout <review-branch>` or via IDEA's Git toolbar, then trigger AI Review again.
+
+### AI Review says "Claude Code CLI not found" — what do I do?
+
+1. Run `claude --version` in a terminal to verify the command is available. If it fails, Claude Code CLI is not yet set up — follow the [official documentation](https://docs.anthropic.com/en/docs/claude-code/getting-started) to install and log in
+2. If the terminal works but the plugin validation fails, IDEA's `PATH` likely differs from your shell's. Set "Claude Start Command" in settings to the full binary path (e.g., `/usr/local/bin/claude`)
 
 ---
 
