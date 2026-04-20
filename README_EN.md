@@ -10,7 +10,7 @@
 
 An IntelliJ IDEA plugin that helps you review code efficiently with session management, incremental review, AI-powered review, automated rules, and a comment system
 
-[![Version](https://img.shields.io/badge/version-4.0.0-blue.svg)](https://plugins.jetbrains.com/plugin/29361-code-review-plus)
+[![Version](https://img.shields.io/badge/version-4.1.0-blue.svg)](https://plugins.jetbrains.com/plugin/29361-code-review-plus)
 [![IDEA Version](https://img.shields.io/badge/IDEA-2025.2+-orange.svg)](https://www.jetbrains.com/idea/)
 
 </div>
@@ -27,6 +27,7 @@ An IntelliJ IDEA plugin that helps you review code efficiently with session mana
 - [User Guide](#user-guide)
 - [Auto Review Rules [Premium]](#auto-review-rules-premium)
 - [AI Review [Premium]](#ai-review-premium)
+- [AI Auto-Fix [Premium]](#ai-auto-fix-premium)
 - [Report Export & Import](#report-export--import)
 - [Plugin Settings](#plugin-settings)
 - [Best Practices](#best-practices)
@@ -107,6 +108,16 @@ Add text comments to code in the Diff view to record issues and improvement sugg
 
 **Comment numbering**: Each comment is automatically assigned a unique sequential number (e.g., C1, C2, C3) within a session. Comment numbers are displayed in the Comment List, gutter icon tooltips, and exported reports for easy reference and communication.
 
+**Comment priority**: Each comment can be assigned a priority level, helping developers distinguish must-fix critical issues from optional suggestions.
+
+| Icon | Priority | Meaning |
+|:----:|----------|---------|
+| <img src="images/comment_mandatory.svg" width="16" height="16"> | Mandatory | Affects service stability or data integrity — must be fixed before release |
+| <img src="images/comment_recommended.svg" width="16" height="16"> | Recommended | May affect service in edge cases — recommended to fix before release |
+| <img src="images/comment_advisory.svg" width="16" height="16"> | Advisory | Code style or best-practice suggestion — no stability impact, address at your discretion |
+
+Priority can be set when adding a comment and changed afterward. Issues submitted by AI Review are automatically assigned a priority based on their severity.
+
 **Comment statuses**:
 
 
@@ -128,9 +139,9 @@ Automatically mark code block statuses based on predefined rules. For example:
 
 Auto review helps you skip trivial changes and focus on code that truly needs attention. Rules can be freely enabled and disabled in settings.
 
-### AI Review [Premium] ✨ New in v4.0
+### AI Review [Premium] ✨ New in v4.0 / Extended in v4.1
 
-Powered by **Claude Code CLI + MCP Server** architecture, AI Review lets AI autonomously perform code review. The plugin launches a local MCP HTTP Server, and Claude Code CLI subprocesses connect via tool calls to retrieve diff content, read source files, and submit findings — no human intervention required.
+Powered by **AI CLI + MCP Server** architecture, AI Review lets AI autonomously perform code review. The plugin launches a local MCP HTTP Server, and AI CLI subprocesses connect via tool calls to retrieve diff content, read source files, and submit findings — no human intervention required.
 
 Three expert agents run in parallel, covering different dimensions:
 
@@ -145,7 +156,11 @@ Advantages of using AI Review within the plugin:
 2. Comments created before AI Review starts are passed to the AI via the MCP server. The AI uses this information to avoid re-flagging already-discovered issues while helping surface additional problems.
 3. After review, the AI submits its findings via the MCP server. This makes review artifact management straightforward and provides data support for future re-reviews.
 
-> **Prerequisites**: Claude Code CLI must be installed and logged in. See the [AI Review](#ai-review-premium) section for details.
+**v4.1: Codex CLI support added**
+
+In addition to Claude Code CLI, v4.1 introduces support for **Codex CLI** (OpenAI). AI Review and AI Auto-Fix can each independently use either CLI — you can even mix them (e.g., review with Codex, fix with Claude Code).
+
+> **Prerequisites**: Install and configure the CLI tool of your choice. See the [AI Review](#ai-review-premium) section for details.
 
 ### Report Export & Import
 
@@ -556,33 +571,36 @@ Go to `Settings` → `Tools` → `Code Review Plus`, in the Auto Review Settings
 
 ## AI Review [Premium]
 
-AI Review uses **Claude Code CLI** combined with the plugin's embedded **MCP Server** to perform fully autonomous code review. Three expert agents run in parallel across the code quality, security, and database dimensions, automatically surfacing deep issues that are easy to miss manually.
+AI Review uses AI CLI combined with the plugin's embedded **MCP Server** to perform fully autonomous code review. Three expert agents run in parallel across the code quality, security, and database dimensions, automatically surfacing deep issues that are easy to miss manually.
+
+Since v4.1, both **Claude Code CLI** (Anthropic) and **Codex CLI** (OpenAI) are supported as AI engines — configure the one that matches your setup.
 
 ### Prerequisites
 
-Before using AI Review, confirm the following are in place:
+Install and configure the CLI tool of your choice:
 
-**1. Claude Code CLI is installed and configured locally**
+**Using Claude Code CLI (default)**
 
-Follow the [official Claude Code documentation](https://docs.anthropic.com/en/docs/claude-code/getting-started) to install and log in.
-
-**2. Verify availability from the command line**
-
-Open a terminal and run:
+Follow the [official Claude Code documentation](https://docs.anthropic.com/en/docs/claude-code/getting-started) to install and log in, then verify in a terminal:
 ```bash
 claude --version   # confirms the command is found
 claude -p "hi"     # confirms login is valid; should return a normal response
 ```
 
-If both commands succeed, the environment is ready and the plugin can use it directly.
+**Using Codex CLI**
 
-**3. Verify connectivity from the plugin settings**
+Follow the [Codex CLI documentation](https://github.com/openai/codex) to install, and ensure `OPENAI_API_KEY` is set in your environment:
+```bash
+codex --version    # confirms the command is found
+```
 
-Go to `Settings → Tools → Code Review Plus → AI Review`, then click the **Validate** button next to "Claude Start Command". The plugin will run `claude --version` to check whether the binary is reachable.
+**Verify connectivity from plugin settings**
 
-If the command works in terminal but the plugin validation fails, this is usually because IDEA's `PATH` differs from your shell's. In that case, set "Claude Start Command" to the full path of the binary (e.g., `/usr/local/bin/claude`).
+Go to `Settings → Tools → Code Review Plus → AI Review`, then click the **Validate** button next to the relevant "Start Command" field. The plugin will run a version check to confirm the binary is reachable.
 
-**4. Valid Premium license**
+If the command works in terminal but validation fails, IDEA's `PATH` likely differs from your shell's. Set the "Start Command" to the full binary path (e.g., `/usr/local/bin/claude`).
+
+**Valid Premium license**
 
 AI Review is a premium feature and requires a valid Code Review Plus Premium license.
 
@@ -636,13 +654,32 @@ AI Review only processes **UNREVIEWED** blocks. Blocks already marked as Passed 
 
 Go to `Settings → Tools → Code Review Plus → AI Review`:
 
-**Global Settings**
+**AI Engine Selection**
+
+| Setting | Description | Default |
+|---------|-------------|---------|
+| Review Engine | CLI tool for AI Review: Claude Code CLI or Codex CLI | Claude Code CLI |
+| Fix Engine | CLI tool for AI Auto-Fix: can be set independently from the review engine | Claude Code CLI |
+
+**Claude Code CLI Settings**
+
+| Setting | Description | Default |
+|---------|-------------|---------|
+| Start Command | Path to the `claude` binary; use full path if it isn't in PATH | `claude` |
+| Model | Claude model to use (e.g. `claude-opus-4-5`); leave blank for CLI default | Blank (CLI default) |
+
+**Codex CLI Settings**
+
+| Setting | Description | Default |
+|---------|-------------|---------|
+| Start Command | Path to the `codex` binary; use full path if it isn't in PATH | `codex` |
+| Model | Model to use (e.g. `o4-mini`); leave blank for CLI default | Blank (CLI default) |
+
+**Shared Settings**
 
 | Setting | Description | Default |
 |---------|-------------|---------|
 | Enable AI Review | Global on/off switch | Enabled |
-| Claude Start Command | Path to the claude binary; use full path if `claude` isn't in PATH | `claude` |
-| Model | Claude model to use (e.g. `claude-opus-4-5`); leave blank to use the CLI default | Blank (CLI default) |
 | Prompt Language | Output language for review findings: `zh` for Chinese, `en` for English | Follows IDE locale |
 | Timeout (minutes) | Maximum wait time per session; leave blank for adaptive timeout (5 min per 50 files, min 5 min) | Adaptive |
 
@@ -704,6 +741,39 @@ Focused on database operation issues, for example:
 
 ---
 
+## AI Auto-Fix [Premium]
+
+✨ **New in v4.1**
+
+Once AI Review surfaces issues, you can let AI fix the code directly — no manual search, no line-by-line editing. AI Auto-Fix reads the problem description and line numbers from each comment, then edits the source files on your behalf.
+
+The same AI engines supported by AI Review are available for Auto-Fix: **Claude Code CLI** or **Codex CLI**, configured independently in settings.
+
+### How to Use
+
+**Fix all pending issues in the current session**
+
+Click the **AI Fix** button in the toolbar. AI will batch-process all comments in "Pending" status from the current session.
+
+**Fix specific comments only**
+
+Right-click one or more comments in the Comment List and select **AI Fix Selected** to target only those issues.
+
+### How It Works
+
+- Runs concurrently by file — up to 5 files are processed at a time; within each file, issues are addressed in line-number order
+- Progress streams in real time to an output panel; you can monitor the AI's actions as they happen
+- After completion, the file list refreshes automatically — inspect the diff to confirm the changes
+- Only local source files are modified; nothing is committed or pushed automatically
+
+### Things to Keep in Mind
+
+- Fix quality depends on comment clarity — **the more specific the description, the better the result**
+- Always build and test after AI Fix to confirm the code behaves as expected
+- For complex business logic changes, let AI make the first attempt, then review the output carefully before committing
+
+---
+
 ## Report Export & Import
 
 The export and import features are designed to bridge the collaboration gap between reviewers and developers. After completing a review, the reviewer exports a report. The developer imports the report into their own IDEA to see all comments and fix issues one by one. Once fixes are committed, the reviewer pulls the latest code and refreshes the review session to confirm whether issues have been resolved.
@@ -753,7 +823,8 @@ Go to `Settings` → `Tools` → `Code Review Plus` to configure:
 | Branch Update Check | Automatically detect new remote branch commits and show a reminder | On |
 | Default Export Directory | Choose between relative path or fixed path | Relative |
 | Auto Review Rule Settings | Configure auto review rule toggles and global options | See above |
-| AI Review Settings | Configure Claude Code CLI command, model, expert toggles, and custom rules | See above |
+| AI Review Settings | Configure AI engine (Claude Code CLI / Codex CLI), model, expert toggles, and custom rules | See above |
+| AI Auto-Fix Settings | Configure the fix engine (can differ from the review engine); the toolbar and comment context menu show the Fix button only when this is enabled | Off |
 
 ---
 
@@ -761,15 +832,23 @@ Go to `Settings` → `Tools` → `Code Review Plus` to configure:
 
 ### Daily Review Workflow
 
-**Recommended workflow**:
+**Recommended reviewer workflow**:
 
 1. **Create session** → Select the feature branch and master/develop branch
 2. **Run auto review** → Let rules automatically handle whitespace, import, and other trivial changes (fast, seconds)
-3. **Run AI review** → Let AI automatically surface code quality, security, and SQL issues (requires Claude Code CLI)
+3. **Run AI review** → Let AI automatically surface code quality, security, and SQL issues (requires AI CLI)
 4. **Review file by file** → Start with unreviewed files, double-click to open the Diff view; focus on what AI didn't flag
-5. **Mark status + write comments** → Mark passing code as Passed, flag issues as Issues with comments
+5. **Mark status + write comments** → Mark passing code as Passed, flag issues as Issues with comments; set priority on important issues
 6. **Refresh periodically** → Refresh when the branch has new commits, focus only on changes
 7. **Export report** → After review, export for archiving or send to the developer for import
+
+**Developer self-review workflow (recommended before submitting)**:
+
+1. **Create session** → Select your own feature branch
+2. **Run auto review + AI review** → Quickly scan for potential issues
+3. **Run AI Auto-Fix** → Let AI fix discovered issues automatically (requires AI Auto-Fix enabled in settings)
+4. **Check the results** → Review AI-modified code and confirm the logic is correct
+5. **Handle remaining issues** → Manually fix complex issues that AI couldn't resolve automatically
 
 ### Large Branch Review Strategy
 
@@ -850,11 +929,11 @@ The impact is minimal. Diff computation uses the Git command line, database oper
 
 ### Does AI Review require an internet connection?
 
-Yes. AI Review invokes Claude Code CLI, which connects to the Anthropic API server. The plugin itself (MCP Server and database) runs entirely locally — only the Claude Code CLI subprocess makes outbound API requests to Anthropic.
+Yes. AI Review invokes the configured AI CLI, which connects to the corresponding API server (Anthropic for Claude Code, OpenAI for Codex). The plugin itself (MCP Server and database) runs entirely locally — only the CLI subprocess makes outbound API requests.
 
 ### Does AI Review incur API costs?
 
-Yes. AI Review consumes Anthropic Claude API tokens, which incur charges. Actual costs depend on code volume and the model selected — typically $0.01–$0.50 per review session. The output dialog shows the total cost for each completed session.
+Yes. AI Review consumes API tokens from the provider you choose (Anthropic for Claude Code, OpenAI for Codex), which incur charges. Actual costs depend on code volume and the model selected — typically $0.01–$0.50 per review session. The output dialog shows the total cost for each completed session.
 
 ### How long does AI Review take?
 
@@ -864,21 +943,33 @@ It depends on code volume and the number of enabled experts. A session with 20�
 
 | Dimension | Auto Review | AI Review |
 |-----------|-------------|-----------|
-| Implementation | Predefined rules, static analysis | Claude AI large model inference |
+| Implementation | Predefined rules, static analysis | AI large model inference |
 | Speed | Seconds | Minutes |
 | Understanding | Pattern matching, no context | Understands semantics and business logic |
 | Coverage | Fixed rule set | Flexible, discovers novel issues |
 | Cost | Free | Incurs API charges |
 | Recommended order | Run first, quickly filter noise | Run second, deep-dive into standards and security |
 
+### What's the difference between AI Auto-Fix and AI Review?
+
+AI Review **finds** issues; AI Auto-Fix **resolves** them. The two are triggered independently. A typical flow: AI Review scans and flags problems → you confirm which ones are safe to auto-fix → AI Auto-Fix applies the changes → you verify the result before committing.
+
+### Will AI Auto-Fix modify my files directly?
+
+Yes, AI Auto-Fix writes changes directly to local source files. We recommend ensuring your working tree is clean (or stashed) before running it so you have a rollback point. Always review and verify the AI's changes before committing.
+
+### Which is better — Codex CLI or Claude Code CLI?
+
+Both are capable. Claude Code generally has stronger autonomous tool-use and code reasoning; Codex is a natural fit if you already have an OpenAI API key. Choose based on your team's existing API access, and feel free to mix them (e.g., Claude for review, Codex for auto-fix).
+
 ### AI Review says "branch mismatch" — what do I do?
 
 AI Review validates that the current Git branch matches the review session's branch. If they don't match, switch to the session's branch with `git checkout <review-branch>` or via IDEA's Git toolbar, then trigger AI Review again.
 
-### AI Review says "Claude Code CLI not found" — what do I do?
+### AI Review says the CLI is not found — what do I do?
 
-1. Run `claude --version` in a terminal to verify the command is available. If it fails, Claude Code CLI is not yet set up — follow the [official documentation](https://docs.anthropic.com/en/docs/claude-code/getting-started) to install and log in
-2. If the terminal works but the plugin validation fails, IDEA's `PATH` likely differs from your shell's. Set "Claude Start Command" in settings to the full binary path (e.g., `/usr/local/bin/claude`)
+1. Run `claude --version` (or `codex --version`) in a terminal to verify the command is available. If it fails, the CLI is not yet set up — follow the respective installation guide
+2. If the terminal works but the plugin validation fails, IDEA's `PATH` likely differs from your shell's. Set the "Start Command" in settings to the full binary path (e.g., `/usr/local/bin/claude` or `/usr/local/bin/codex`)
 
 ---
 
