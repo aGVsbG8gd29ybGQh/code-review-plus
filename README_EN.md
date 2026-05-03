@@ -10,7 +10,7 @@
 
 An IntelliJ IDEA plugin that helps you review code efficiently with session management, incremental review, AI-powered review, automated rules, and a comment system
 
-[![Version](https://img.shields.io/badge/version-4.1.0-blue.svg)](https://plugins.jetbrains.com/plugin/29361-code-review-plus)
+[![Version](https://img.shields.io/badge/version-4.2.0-blue.svg)](https://plugins.jetbrains.com/plugin/29361-code-review-plus)
 [![IDEA Version](https://img.shields.io/badge/IDEA-2025.2+-orange.svg)](https://www.jetbrains.com/idea/)
 
 </div>
@@ -139,7 +139,7 @@ Automatically mark code block statuses based on predefined rules. For example:
 
 Auto review helps you skip trivial changes and focus on code that truly needs attention. Rules can be freely enabled and disabled in settings.
 
-### AI Review [Premium] ✨ New in v4.0 / Extended in v4.1
+### AI Review [Premium]
 
 Powered by **AI CLI + MCP Server** architecture, AI Review lets AI autonomously perform code review. The plugin launches a local MCP HTTP Server, and AI CLI subprocesses connect via tool calls to retrieve diff content, read source files, and submit findings — no human intervention required.
 
@@ -361,24 +361,19 @@ Covered scenarios:
 - **Critical risk**: `static SimpleDateFormat`, `static Calendar` — thread-unsafe; concurrent formatting causes date corruption
 - **High risk**: `static HashMap`, `static ArrayList`, `static HashSet` — non-thread-safe collections used as shared global state, leading to data loss or exceptions under concurrency
 
-##### Conditional Null Dereference Detection
+##### Conditional Null Dereference Detection (Enhanced in v4.2)
 
-Detects chained method calls where an intermediate method is annotated `@Nullable` and its return value is used directly without a null guard:
+Powered by the **Semantic Analysis Engine v2** — a cross-method, multi-level tracking engine for null pointer risk detection. Unlike traditional rules that only check single statements or rely on annotations, the new engine can analyze whether a called method's return value may be null, and continuously track variable origins through multiple call chain levels to determine null-possible values.
 
-```java
-// ❌ getUser() is @Nullable — direct chaining may throw NPE
-service.getUser(id).getName()
+**What's new in v4.2:**
 
-// ✅ Safe alternatives
-User user = service.getUser(id);
-if (user != null) { user.getName(); }
-```
+- **Cross-method tracking**: Analyzes all return paths of called methods — even without annotations, the engine can determine if a return value can be null
+- **Container null-safety**: Understands Map, List, Queue null-safety patterns — recognizes paired guard checks and safe access patterns
+- **Builder chain tracking**: Tracks null propagation through Builder method chains across multiple levels
+- **Stable lookup API detection**: Common container lookup APIs are recognized as contractually nullable even without explicit annotations
+- **Null propagation trace**: When a risk is found, the full propagation path from null source to the usage point is displayed
 
-The following safe patterns are excluded (no false positives):
-
-- `if (a.b() != null) { a.b().c(); }` — explicit if guard
-- `a.b() != null ? a.b().c() : null` — ternary guard
-- `if (x != null && a.b() != null) { a.b().c(); }` — compound condition guard
+**About false positives**: While we have implemented multiple strategies to reduce false positives (control flow analysis, guard check recognition, container state tracking, etc.), the inherent limitations of static analysis mean some false positives may still occur. If you encounter one, we welcome your feedback — it helps us keep improving.
 
 ##### Precision Trap Detection
 
