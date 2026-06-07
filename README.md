@@ -10,7 +10,7 @@
 
 一款 IntelliJ IDEA 插件，通过会话管理、增量评审、AI 智能评审、自动化规则和评论系统，帮助你高效完成代码评审
 
-[![Version](https://img.shields.io/badge/version-4.2.0-blue.svg)](https://plugins.jetbrains.com/plugin/29361-code-review-plus)
+[![Version](https://img.shields.io/badge/version-2026.4.4-blue.svg)](https://plugins.jetbrains.com/plugin/29361-code-review-plus)
 [![IDEA Version](https://img.shields.io/badge/IDEA-2025.2+-orange.svg)](https://www.jetbrains.com/idea/)
 
 </div>
@@ -72,6 +72,7 @@ Code Review Plus 从四个方向解决这些问题：
 - 会话数据自动保存在本地，IDEA 重启后自动恢复
 - 同一个项目可以同时管理多个评审会话
 - 不同项目的评审数据互相独立
+- 会话列表中右键即可修改会话名称，方便标识和区分多个评审
 
 ### 状态跟踪
 
@@ -102,13 +103,17 @@ Code Review Plus 从四个方向解决这些问题：
 
 这意味着你不需要从头开始——只需要继续评审变更的部分。
 
+对于新增的 Java/Kotlin 源文件，插件可以按方法、构造函数、内部类自动拆分为多个 DiffBlock，每个方法成为独立的评审单元，告别整文件对比。你可以在设置中开启此功能。
+
+当本地评审分支有更新时，插件还可以自动刷新评审会话而无需手动点击，同样在设置中开启。在设置中开启"分支更新自动刷新"即可。
+
 ### 评论系统
 
 在 Diff 视图中为代码添加文字评论，记录发现的问题和改进建议。
 
-**评论编号**：每条评论在创建时自动分配唯一编号（如 C1、C2、C3），编号在会话内递增。评论编号会在评论列表、Gutter 图标 Tooltip 和导出报告中显示，方便引用和沟通。
+**评论编号**：每条评论在创建时自动分配唯一编号（如 C1、C2、C3），编号在会话内递增。评论编号会在评论列表、Gutter 图标 Tooltip 和导出报告中显示，方便引用和沟通。树视图中的评论节点直接显示编号而非名称，一目了然。
 
-**评论优先级**：每条评论可以设置优先级，帮助开发者区分必须修复的严重问题和可酌情处理的建议。
+**评论优先级**：每条评论可以设置优先级，帮助开发者区分必须修复的严重问题和可酌情处理的建议。优先级图标会直接在评论列表和代码 Gutter 区域展示，方便快速识别评论的严重程度。
 
 |                                    图标                                     | 优先级 | 含义                              |
 |:-------------------------------------------------------------------------:|-----|---------------------------------|
@@ -142,7 +147,7 @@ Code Review Plus 从四个方向解决这些问题：
 
 ### AI 评审 [Premium]
 
-基于 **AI CLI + MCP Server** 架构，让 AI 自主完成代码评审。插件在本地启动一个 MCP HTTP Server，AI CLI 子进程通过工具调用从 Server 获取 diff 内容，自主读取源文件，发现问题后提交。整个过程无需人工干预。
+基于 **AI CLI + MCP Server / Skill** 双通信架构，让 AI 自主完成代码评审。插件在本地启动一个 HTTP API Server，AI CLI 子进程通过 MCP 工具调用或 Skill 调用从 Server 获取 diff 内容，自主读取源文件，发现问题后提交。整个过程无需人工干预。
 
 三个专家 Agent 并行运行，覆盖不同维度的代码问题：
 
@@ -153,13 +158,11 @@ Code Review Plus 从四个方向解决这些问题：
 AI 评审支持**全量评审**（对会话中所有未评审代码块）和**局部评审**（右键选中的文件）。评审过程实时输出到弹窗，每个专家独立 Tab。
 
 在插件中调用 AI 评审的优势：
-1. 在自动评审的基础上，大量的 diff 已经被标记为自动通过，当 AI 通过 MCP 服务获取需要评审的内容时，这部分将不会返回给 AI，减少 AI 评审的内容；
-2. 在 AI 评审前已经被创建的评论信息，在 AI 评审时会通过 MCP 服务传递给 AI，AI 通过这些数据可以避免再次检查已经发现的问题，同时辅助发现其他问题；
-3. AI 在评审完成后会通过 MCP 服务提交评论，这方便我们对评审产物的管理，同时也能作为再次评审时的数据支撑；
+1. 在自动评审的基础上，大量的 diff 已经被标记为自动通过，当 AI 通过插件获取需要评审的内容时，这部分将不会返回给 AI，减少 AI 评审的内容；
+2. 在 AI 评审前已经被创建的评论信息，在 AI 评审时会传递给 AI，AI 通过这些数据可以避免再次检查已经发现的问题，同时辅助发现其他问题；
+3. AI 在评审完成后会提交评论，这方便我们对评审产物的管理，同时也能作为再次评审时的数据支撑；
 
-**v4.1 新增：支持 Codex CLI**
-
-除了 Claude Code CLI，v4.1 起新增对 **Codex CLI**（OpenAI）的支持。AI 评审和 AI 修复可以分别独立选择使用哪个 CLI 工具，也可以混用：例如用 Codex 做评审、用 Claude Code 做代码修复。
+AI 评审支持 **Claude Code CLI**（Anthropic）和 **Codex CLI**（OpenAI）两种引擎，AI 评审和 AI 修复可以分别独立选择使用哪个 CLI 工具，也可以混用。评审过程中，输出面板顶部实时显示倒计时和剩余时间。评审树中的文件夹图标会根据目录类型（模块目录、源码根、测试源码根等）显示不同的图标，目录结构一目了然。
 
 > **前提条件**：根据你选择的 AI 引擎，安装并配置对应的 CLI 工具。详见 [AI 评审](#ai-评审-premium) 章节。
 
@@ -271,6 +274,7 @@ Code Review Plus 采用 Freemium 模式：**自动评审和 AI 评审功能需�
 | <img src="images/add.svg" width="16" height="16">     | 创建会话 | 新建评审会话或从评审报告导入                               |
 | <img src="images/refresh.svg" width="16" height="16"> | 刷新会话 | 增量更新当前会话的差异数据                                |
 | <img src="images/delete.svg" width="16" height="16">  | 删除会话 | 删除当前会话及所有关联数据                                |
+| <img src="images/run.svg" width="16" height="16">     | 评审操作 | 下拉菜单，包含自动评审、AI 评审和 AI 修复三项，tooltip 动态显示当前不可用原因 |
 | <img src="images/run.svg" width="16" height="16">     | 自动评审 | 对当前会话执行自动评审规则（基于规则的快速评审）                     |
 | <img src="images/run.svg" width="16" height="16">     | AI 评审 | 启动 AI 评审（Claude Code CLI 或 Codex CLI），对所有未评审代码块进行三专家并行智能评审  |
 | <img src="images/run.svg" width="16" height="16">     | AI 修复 | 一键让 AI 修复当前会话所有待处理评论指出的问题（需在设置中手动开启）  |
@@ -295,6 +299,8 @@ Code Review Plus 采用 Freemium 模式：**自动评审和 AI 评审功能需�
 ```
 
 完成度计算公式：(已确认 + 问题) / 总数 × 100%
+
+统计面板采用进度条动态颜色变化和 IDEA 原生图标。当工具窗口宽度不足时，鼠标悬停自动弹出浮层显示完整统计信息，不再被截断。
 
 ### 评论管理
 
@@ -326,19 +332,9 @@ Code Review Plus 采用 Freemium 模式：**自动评审和 AI 评审功能需�
 
 ##### 硬编码密钥检测
 
-检测代码中直接出现的敏感凭据字符串，防止密钥随代码提交泄漏。覆盖场景：
+检测代码中直接出现的敏感凭据字符串，防止密钥随代码提交泄漏。覆盖密码字段赋值、API Key / Token、JWT / 签名密钥、私钥 PEM 字符串字面量等场景。
 
-- 密码字段赋值：`password = "abc123"`、`passwd = "P@ssw0rd"`
-- API Key / Token：`apiKey = "sk-xxxx"`、`token = "eyJxxx"`
-- JWT / 签名密钥：`secretKey = "jwt-secret"`、`signingKey = "..."`
-- 私钥 PEM 字符串：字面量中包含 `-----BEGIN PRIVATE KEY-----`
-- 各类凭据关键字：`credential`、`authorization`、`access_key`、`secret`、`auth_token` 等
-
-已排除的场景（降低误报）：
-
-- 注释行（`//`、`/*`、`*` 开头）
-- Swagger / OpenAPI 注解的 `example` 属性值，如 `@ApiModelProperty(example = "token_abc123")`
-- 变量名含 `PATTERN`、`REGEX`、`EXAMPLE`、`PLACEHOLDER` 关键词的常量（正则模式或示例占位符）
+已排除的场景（降低误报）：注释行、Swagger / OpenAPI 注解的 `example` 属性值、变量名含 `PATTERN` / `REGEX` / `EXAMPLE` / `PLACEHOLDER` 关键词的常量。
 
 ##### 禁止通配符导入（import *）
 
@@ -358,16 +354,13 @@ Code Review Plus 采用 Freemium 模式：**自动评审和 AI 评审功能需�
 
 适用类型：`@Service`、`@Component`、`@Repository`、`@Controller`、`@Configuration` 标注的类。
 
-覆盖场景：
+覆盖场景：`static SimpleDateFormat`、`static Calendar`（线程不安全，并发格式化会互相干扰，导致日期错误）以及 `static HashMap`、`static ArrayList`、`static HashSet`（非线程安全集合被并发读写，导致数据丢失或异常）。
 
-- **极高风险**：`static SimpleDateFormat`、`static Calendar`（线程不安全，并发格式化会互相干扰，导致日期错误）
-- **高风险**：`static HashMap`、`static ArrayList`、`static HashSet`（非线程安全集合被并发读写，导致数据丢失或异常）
+##### 条件路径空指针检测
 
-##### 条件路径空指针检测 (v4.2 增强)
+基于**语义分析引擎**进行跨方法、多层级追踪的空指针风险检测。不同于传统规则仅检查单语句或依赖注解，引擎可以在被调方法内部分析返回值是否为 null，并通过多级调用链持续追踪变量的来源，判断其是否可能为 null。
 
-基于 **语义分析引擎 v2** 进行跨方法、多层级追踪的空指针风险检测。不同于传统规则仅检查单语句或依赖注解，新版引擎可以在被调方法内部分析返回值是否为 null，并通过多级调用链持续追踪变量的来源，判断其是否可能为 null。
-
-**v4.2 新增能力：**
+**核心能力：**
 
 - **跨方法追踪**：分析被调方法的所有返回路径，即使方法没有注解，也能判断返回值是否可能为 null
 - **容器空安全**：识别 Map、List、Queue 等容器操作的 null 安全模式，理解配套的守卫检查和安全访问方式
@@ -382,39 +375,25 @@ Code Review Plus 采用 Freemium 模式：**自动评审和 AI 评审功能需�
 检测五类 BigDecimal 误用和三类数值精度问题：
 
 **BigDecimal 误用：**
+- double 参数构造（使用 `new BigDecimal(double)` 而非 `BigDecimal.valueOf()`）导致精度损失
+- 引用相等比较（`==`）代替 `compareTo` 方法
+- `equals` 比较同时检查值和精度，相同数值不同精度的两个 BigDecimal 会被判为不等
+- 单参数 `divide` 在遇到非终止小数时抛出 `ArithmeticException`
+- 直接调用 `intValue()` / `longValue()` 截断小数而非四舍五入
 
-- `new BigDecimal(0.1)` — double 参数构造，实际值为 `0.1000000000000000055511...`；应使用 `BigDecimal.valueOf(0.1)` 或 `new BigDecimal("0.1")`
-- `a == b`（两侧均为 `BigDecimal`）— 引用相等比较，几乎必然为 `false`；应使用 `a.compareTo(b) == 0`
-- `a.equals(b)` 比较 `BigDecimal` — 同时比较值和精度，`new BigDecimal("1.0").equals(new BigDecimal("1.00"))` 返回 `false`；应使用 `compareTo`
-- `a.divide(b)`（仅一个参数）— 遇到非终止小数（如 1/3）时抛出 `ArithmeticException`；应使用 `a.divide(b, 2, RoundingMode.HALF_UP)`
-- `bigDecimal.intValue()` / `longValue()` — 直接截断小数，`new BigDecimal("3.99").intValue()` 返回 `3`，而非预期的四舍五入结果
+**浮点数比较：** IEEE 754 精度误差导致直接相等比较（`==`）不可靠
 
-**浮点数比较：**
+**整数溢出：** int 类型运算结果溢出后再赋给 long，精度已损失
 
-- `if (a == 0.3)`（`a` 为 `double`）— IEEE 754 精度误差导致条件永远不成立；应使用 `Math.abs(a - 0.3) < 1e-9`
-
-**整数溢出：**
-
-- `long total = count * 1024 * 1024`（`count` 为 `int`）— 乘法在 `int` 范围内先溢出再赋给 `long`，精度已损失；应使用 `(long) count * 1024 * 1024`
-
-**前端 Long 序列化：**
-
-- VO/DTO 中返回前端的 `Long` 字段（如雪花 ID）未加 `@JsonSerialize(using = ToStringSerializer.class)` — JavaScript `Number` 类型最大安全整数为 2^53-1，超出范围会导致前端 ID 失真
+**前端 Long 序列化：** VO/DTO 中返回前端的 Long 字段（如雪花 ID）缺少序列化注解时，JavaScript Number 类型无法安全表示超过 2^53-1 的值，导致前端 ID 失真
 
 ##### 循环内数据库查询检测（N+1）
 
 检测在循环体内直接发起数据库查询的场景。N+1 查询是性能事故的高发来源，但其他静态工具因无法同时理解"循环边界"和"DB 调用语义"而无法检测。
 
-识别的循环形态：
+识别的循环形态：标准 Java 循环（`for` / `while` / `do-while` / `for-each`）以及 Stream API 流操作（`.forEach` / `.stream().map` 等）。
 
-- `for` / `while` / `do-while` / `for-each` — 标准 Java 循环
-- `.forEach(lambda)` / `.stream().map(lambda)` 等 Stream API 流操作
-
-DB 调用识别（仅使用结构性证据，不依赖方法名猜测）：
-
-- 类实现了 `JpaRepository` / `CrudRepository`（Spring Data JPA）
-- 类名以 `Mapper`、`Repository`、`Dao` 结尾
-- 方法标注了 `@Select`、`@Update`、`@Insert`、`@Delete`（MyBatis）
+DB 调用识别基于结构性证据：类实现了 Spring Data JPA 的 Repository 接口、类名以 `Mapper` / `Repository` / `Dao` 结尾、方法标注了 MyBatis 注解等。
 
 > 此规则默认禁用，按需开启。
 
@@ -424,11 +403,7 @@ DB 调用识别（仅使用结构性证据，不依赖方法名猜测）：
 
 ##### 调试代码残留
 
-检测以下调试输出语句，防止遗留到生产代码：
-
-- `System.out.println(...)`
-- `System.err.println(...)`
-- `e.printStackTrace()`
+检测 `System.out.println`、`System.err.println`、`e.printStackTrace()` 等调试输出语句，防止遗留到生产代码。
 
 ##### TODO / FIXME 注释
 
@@ -499,7 +474,7 @@ DB 调用识别（仅使用结构性证据，不依赖方法名猜测）：
 
 ##### Redis 缓存击穿检测
 
-检测"缓存读 → 重载 → 写"模式中的击穿风险。通过 PSI 追踪三个关键要素：缓存读取调用（`query1`）、读取后首个赋值点（`p1`）、缓存写入调用（`set2`，支持跨方法追踪）。从 `p1` 到 `set2` 的重载代码块必须满足以下条件，否则告警：
+检测"缓存读 → 重载 → 写"模式中的击穿风险。通过 PSI 追踪缓存读取调用、读取后首个赋值点、缓存写入调用（支持跨方法追踪）三个关键要素。从赋值点到写入调用的重载代码块必须满足以下条件，否则告警：
 
 - **重载块未加锁**：高并发下多个线程会同时穿透缓存，重复查询数据库并写入缓存
 - **已加锁但无双重检查**：获取锁后未再次读取缓存确认是否已被其他线程更新，导致重复写入
@@ -508,22 +483,20 @@ DB 调用识别（仅使用结构性证据，不依赖方法名猜测）：
 
 检测写入 Redis 时未设置过期时间的操作，防止 key 永久占用内存：
 
-- `ValueOperations.set(key, value)` — 2 参数形式（无 TTL），3/4 参数版本含 TTL，不告警
-- `ValueOperations.setIfAbsent(key, value)` — 2 参数形式，常用作分布式锁但缺少超时时间
-- `BoundValueOperations.set(value)` / `BoundValueOperations.setIfAbsent(value)` — 1 参数形式（无 TTL）
-- `setnx(key, value)` — 2 参数形式；第 3 个参数不为字面量 `0` 时视为已设置超时，不告警
-- `persist(key)` / `pPersist(key)` — 显式移除过期时间，使 key 变为永久存在
-- Go-redis：`client.Set(ctx, key, value, 0)` / `client.SetNX(ctx, key, value, 0)` — `duration=0` 表示永不过期
+- 调用 Set 方法时使用 2 参数形式（无 TTL）或 1 参数形式
+- 使用 `setIfAbsent` 等分布式锁常用方法但缺少超时时间
+- 显式调用 `persist` / `pPersist` 移除过期时间，使 key 变为永久存在
+- Go-redis：调用 Set / SetNX 时 `duration=0` 表示永不过期
 
 ##### Redis 危险命令检测
 
 检测三类危险 Redis 命令，支持方法调用和原生命令字符串两种形式：
 
-- **数据破坏命令**：`FLUSHDB`（清空当前数据库所有 key）、`FLUSHALL`（清空 Redis 实例全部 key）、`SHUTDOWN`（关闭 Redis 服务器）——严禁出现在业务代码中
+- **数据破坏命令**：`FLUSHDB`、`FLUSHALL`、`SHUTDOWN`——严禁出现在业务代码中
 - **全量扫描命令（高并发/大数据量下阻塞服务器）**：
-  - `KEYS pattern` — O(N) 全量扫描 keyspace，应改用 `SCAN` 游标迭代
-  - `HGETALL key` — 一次返回 Hash 全量字段，字段数量大时响应体过大
-  - `SMEMBERS key` — 一次返回 Set 全量成员，成员数量大时同上
+  - `KEYS` — O(N) 全量扫描 keyspace，应改用 `SCAN` 游标迭代
+  - `HGETALL` — 一次返回 Hash 全量字段，字段数量大时响应体过大
+  - `SMEMBERS` — 一次返回 Set 全量成员，需注意数据量
 
 ---
 
@@ -570,7 +543,7 @@ DB 调用识别（仅使用结构性证据，不依赖方法名猜测）：
 
 AI 评审利用 AI CLI 结合插件内嵌的 **MCP Server** 实现完全自主的代码评审。三个专家 Agent 并行运行，覆盖规范、安全和 SQL 三个维度，自动发现人工容易遗漏的深层问题。
 
-v4.1 起同时支持 **Claude Code CLI**（Anthropic）和 **Codex CLI**（OpenAI）两种 AI 引擎，可在设置中自由切换。
+同时支持 **Claude Code CLI**（Anthropic）和 **Codex CLI**（OpenAI）两种 AI 引擎，可在设置中自由切换。
 
 ### 前置条件
 
@@ -610,19 +583,22 @@ AI 评审会将代码的 diff 内容发送给 Claude API 进行分析。**在使
 ```
 IDEA 插件
   │
-  ├─ 启动 MCP HTTP Server（localhost:随机端口）
-  │    └─ 提供三个工具：start_review / get_review_blocks / submit_problem
+  ├─ 启动 HTTP API Server（localhost:随机端口）
+  │    └─ 提供三个 REST 端点：start_review / get_review_blocks / submit_problem
   │
   └─ 并行启动三个 AI CLI 子进程（Claude Code CLI 或 Codex CLI，由设置决定）
+       │
+       ├─ [通信方式] MCP 工具调用 或 Skill 调用（两者均支持）
+       │
        ├─ 编码质量审查专家
        ├─ 安全和稳定性审查专家
        └─ 数据库方向审查专家
             │
-            └─ 每个 Agent 通过 MCP 工具调用：
-                 1. start_review → 获取待审文件清单
-                 2. get_review_blocks → 获取 diff 内容和语义摘要
+            └─ 每个 Agent 调用 API 端点：
+                 1. start-review → 获取待审文件清单
+                 2. get-review-blocks → 获取 diff 内容和语义摘要
                  3. 读取源文件（通过 Read/Grep）→ 验证问题
-                 4. submit_problem → 提交发现的问题
+                 4. submit-problem → 提交发现的问题
 ```
 
 每个 Agent 产生的问题会自动提交到插件数据库，触发 UI 刷新，问题代码块标记为"自动问题"状态。
@@ -691,15 +667,7 @@ AI 评审只处理 **UNREVIEWED（未评审）** 状态的代码块。已通过�
 
 ### 自定义补充规则
 
-自定义补充规则是项目级配置，允许团队为 AI 专家添加额外的评审要求。例如：
-
-```
-1. 可以通过 db skills 访问数据库，当前项目数据库是：xxx，用来辅助确认索引情况
-2. 禁止在 Service 层直接使用 HttpServletRequest/Response，应通过上下文传递
-3. 数据库查询方法名必须以 query/get/find/count 开头
-```
-
-这些规则会注入到所有专家的系统提示词中，专家会对提示词进行处理。
+自定义补充规则是项目级配置，允许团队为 AI 专家添加额外的评审要求，例如团队特定的编码规范、数据库访问方式、分层架构约束等。这些规则会注入到所有专家的系统提示词中。
 
 ### 三个专家的评审维度
 
@@ -740,8 +708,6 @@ AI 评审只处理 **UNREVIEWED（未评审）** 状态的代码块。已通过�
 ---
 
 ## AI 自动修复 [Premium]
-
-✨ **v4.1 新增功能**
 
 AI 评审找出问题后，你可以一键让 AI 直接修复代码——无需手动定位、理解问题、再逐行改代码。AI 修复会读取评论中的问题描述和代码行号，在本地对源文件进行修改。
 
@@ -818,7 +784,9 @@ AI 评审找出问题后，你可以一键让 AI 直接修复代码——无需�
 | 报告导出语言            | 导出报告使用的语言                                                              | English |
 | 添加评论时自动标记问题       | 添加评论时将关联的代码块自动标记为"问题"                                                  | 关闭      |
 | 显示 Diff Block 工具栏 | 在 Diff 视图的每个代码块左侧显示操作工具栏，可快速切换 diff block                              | 关闭      |
-| 分支更新检测            | 自动检测远程分支是否有新提交并提醒                                                      | 开启      |
+| 分支更新检测            | 自动检测远程/本地分支是否有新提交并提醒                                                      | 开启      |
+| 分支更新自动刷新         | 检测到分支更新时自动刷新评审会话，无需手动点击                                               | 关闭      |
+| 新增文件按方法拆分       | 新增 Java 源文件按方法/构造函数/内部类自动拆分为多个独立评审块                                      | 关闭      |
 | 导出目录模式            | 选择相对路径或固定路径                                                            | 相对路径    |
 | 自动评审规则配置          | 配置自动评审规则的启用状态和全局选项                                                     | 见上文     |
 | AI 评审配置           | 配置 AI 引擎（Claude Code CLI / Codex CLI）、模型、专家开关、自定义规则等，详见 AI 评审章节        | 见上文     |
