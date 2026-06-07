@@ -10,7 +10,7 @@
 
 An IntelliJ IDEA plugin that helps you review code efficiently with session management, incremental review, AI-powered review, automated rules, and a comment system
 
-[![Version](https://img.shields.io/badge/version-4.2.0-blue.svg)](https://plugins.jetbrains.com/plugin/29361-code-review-plus)
+[![Version](https://img.shields.io/badge/version-2026.4.4-blue.svg)](https://plugins.jetbrains.com/plugin/29361-code-review-plus)
 [![IDEA Version](https://img.shields.io/badge/IDEA-2025.2+-orange.svg)](https://www.jetbrains.com/idea/)
 
 </div>
@@ -72,6 +72,7 @@ Select a review branch and a base branch to create a review session. The plugin 
 - Session data is automatically saved locally and restored after IDEA restarts
 - Multiple review sessions can be managed simultaneously within the same project
 - Review data is isolated between different projects
+- Right-click a session in the list to rename it for easier identification
 
 ### Status Tracking
 
@@ -102,13 +103,17 @@ After new commits on the branch, click the refresh button. The system recalculat
 
 This means you don't have to start over — just continue reviewing the changed parts.
 
+Newly added Java/Kotlin source files can be automatically split into multiple DiffBlocks by method, constructor, and inner class — each method becomes an independent review unit. Enable this in Settings.
+
+When the local review branch has new commits, the plugin can auto-refresh the session without requiring a manual button click. Enable this in Settings as well.
+
 ### Comment System
 
 Add text comments to code in the Diff view to record issues and improvement suggestions.
 
-**Comment numbering**: Each comment is automatically assigned a unique sequential number (e.g., C1, C2, C3) within a session. Comment numbers are displayed in the Comment List, gutter icon tooltips, and exported reports for easy reference and communication.
+**Comment numbering**: Each comment is automatically assigned a unique sequential number (e.g., C1, C2, C3) within a session. Comment numbers are displayed in the Comment List, gutter icon tooltips, and exported reports for easy reference and communication. Tree view nodes now show the comment number directly instead of the name.
 
-**Comment priority**: Each comment can be assigned a priority level, helping developers distinguish must-fix critical issues from optional suggestions.
+**Comment priority**: Each comment can be assigned a priority level, helping developers distinguish must-fix critical issues from optional suggestions. Priority icons are shown in both the comment list and code gutter for quick visual identification of comment severity.
 
 | Icon | Priority | Meaning |
 |:----:|----------|---------|
@@ -141,7 +146,7 @@ Auto review helps you skip trivial changes and focus on code that truly needs at
 
 ### AI Review [Premium]
 
-Powered by **AI CLI + MCP Server** architecture, AI Review lets AI autonomously perform code review. The plugin launches a local MCP HTTP Server, and AI CLI subprocesses connect via tool calls to retrieve diff content, read source files, and submit findings — no human intervention required.
+Powered by **AI CLI + MCP Server / Skill** architecture, AI Review lets AI autonomously perform code review. The plugin launches a local HTTP API Server, and AI CLI subprocesses connect via MCP tool calls or Skill invocations to retrieve diff content, read source files, and submit findings — no human intervention required.
 
 Three expert agents run in parallel, covering different dimensions:
 
@@ -152,13 +157,11 @@ Three expert agents run in parallel, covering different dimensions:
 AI Review supports **full session review** (all unreviewed blocks) and **partial review** (right-click selected files). Progress is streamed in real time to an output dialog with one tab per expert.
 
 Advantages of using AI Review within the plugin:
-1. Building on auto review — a large portion of diffs have already been marked as auto-passed. When the AI retrieves content via the MCP server, these blocks are excluded, reducing the volume of code the AI needs to process.
-2. Comments created before AI Review starts are passed to the AI via the MCP server. The AI uses this information to avoid re-flagging already-discovered issues while helping surface additional problems.
-3. After review, the AI submits its findings via the MCP server. This makes review artifact management straightforward and provides data support for future re-reviews.
+1. Building on auto review — a large portion of diffs have already been marked as auto-passed. When the AI retrieves content, these blocks are excluded, reducing the volume of code the AI needs to process.
+2. Comments created before AI Review starts are passed to the AI. The AI uses this information to avoid re-flagging already-discovered issues while helping surface additional problems.
+3. After review, the AI submits its findings. This makes review artifact management straightforward and provides data support for future re-reviews.
 
-**v4.1: Codex CLI support added**
-
-In addition to Claude Code CLI, v4.1 introduces support for **Codex CLI** (OpenAI). AI Review and AI Auto-Fix can each independently use either CLI — you can even mix them (e.g., review with Codex, fix with Claude Code).
+AI Review supports both **Claude Code CLI** (Anthropic) and **Codex CLI** (OpenAI) — switch freely in settings, or mix and match for review vs. fix. AI agents communicate with the plugin via CLI Skills or the MCP protocol. A countdown timer in the output panel shows real-time remaining review time. The review tree distinguishes folder types (module roots, source roots, test source roots) with their own icons for a clearer directory structure.
 
 > **Prerequisites**: Install and configure the CLI tool of your choice. See the [AI Review](#ai-review-premium) section for details.
 
@@ -270,6 +273,7 @@ After completing the review, click the export button in the toolbar to save the 
 | <img src="images/add.svg" width="16" height="16"> | New Session | Create a new review session or import from a report |
 | <img src="images/refresh.svg" width="16" height="16"> | Refresh | Incrementally update the current session's diff data |
 | <img src="images/delete.svg" width="16" height="16"> | Delete Session | Delete the current session and all associated data |
+| <img src="images/run.svg" width="16" height="16"> | Review Actions | Dropdown menu grouping Auto Review, AI Review, and AI Fix; tooltip shows the current reason when unavailable |
 | <img src="images/run.svg" width="16" height="16"> | Auto Review | Run predefined auto review rules on the current session (fast, rule-based) |
 | <img src="images/run.svg" width="16" height="16"> | AI Review | Start AI review — Claude Code CLI reviews all unreviewed blocks autonomously [Premium] |
 | <img src="images/show.svg" width="16" height="16"> | Switch View | Toggle between Diff Block List and Comment List |
@@ -293,6 +297,8 @@ Review Progress: 45/120 blocks (37.5%)
 ```
 
 Completion formula: (Passed + Issues) / Total × 100%
+
+The statistics panel features a progress bar with dynamic colors, native IDEA icons, and a hover popup for full statistics when the tool window is narrow.
 
 ### Comment Management
 
@@ -324,19 +330,9 @@ Rules are organized into seven categories, displayed as a categorized tree in th
 
 ##### Hardcoded Secret Detection
 
-Detects sensitive credential strings embedded directly in code, preventing secrets from leaking through commits. Covered scenarios:
+Detects sensitive credential strings embedded directly in code, preventing secrets from leaking through commits. Covers password assignments, API keys/tokens, JWT/signing keys, private key PEM strings, and common credential keywords.
 
-- Password assignments: `password = "abc123"`, `passwd = "P@ssw0rd"`
-- API Key / Token: `apiKey = "sk-xxxx"`, `token = "eyJxxx"`
-- JWT / signing keys: `secretKey = "jwt-secret"`, `signingKey = "..."`
-- Private key PEM strings: literals containing `-----BEGIN PRIVATE KEY-----`
-- Common credential keywords: `credential`, `authorization`, `access_key`, `secret`, `auth_token`, etc.
-
-Excluded scenarios (to reduce false positives):
-
-- Comment lines (starting with `//`, `/*`, or `*`)
-- Swagger / OpenAPI annotation `example` attribute values, e.g. `@ApiModelProperty(example = "token_abc123")`
-- Constants whose variable name contains `PATTERN`, `REGEX`, `EXAMPLE`, or `PLACEHOLDER` (regex patterns or placeholder values)
+Excluded scenarios (to reduce false positives): comment lines, Swagger/OpenAPI annotation `example` attribute values, and constants whose variable name suggests regex patterns or placeholders.
 
 ##### Prohibit Wildcard Imports (import \*)
 
@@ -356,16 +352,13 @@ Detects `static` non-`final` mutable fields inside Spring Bean classes (singleto
 
 Applies to classes annotated with: `@Service`, `@Component`, `@Repository`, `@Controller`, `@Configuration`.
 
-Covered scenarios:
+Covered scenarios include `static SimpleDateFormat` and `static Calendar` (thread-unsafe, concurrent formatting causes date corruption), as well as `static HashMap`, `static ArrayList`, `static HashSet` (non-thread-safe collections shared globally, leading to data loss or exceptions under concurrency).
 
-- **Critical risk**: `static SimpleDateFormat`, `static Calendar` — thread-unsafe; concurrent formatting causes date corruption
-- **High risk**: `static HashMap`, `static ArrayList`, `static HashSet` — non-thread-safe collections used as shared global state, leading to data loss or exceptions under concurrency
+##### Conditional Null Dereference Detection
 
-##### Conditional Null Dereference Detection (Enhanced in v4.2)
+Powered by a **Semantic Analysis Engine** — a cross-method, multi-level tracking engine for null pointer risk detection. Unlike traditional rules that only check single statements or rely on annotations, the engine can analyze whether a called method's return value may be null, and continuously track variable origins through multiple call chain levels to determine null-possible values.
 
-Powered by the **Semantic Analysis Engine v2** — a cross-method, multi-level tracking engine for null pointer risk detection. Unlike traditional rules that only check single statements or rely on annotations, the new engine can analyze whether a called method's return value may be null, and continuously track variable origins through multiple call chain levels to determine null-possible values.
-
-**What's new in v4.2:**
+**Key capabilities:**
 
 - **Cross-method tracking**: Analyzes all return paths of called methods — even without annotations, the engine can determine if a return value can be null
 - **Container null-safety**: Understands Map, List, Queue null-safety patterns — recognizes paired guard checks and safe access patterns
@@ -380,41 +373,25 @@ Powered by the **Semantic Analysis Engine v2** — a cross-method, multi-level t
 Detects five BigDecimal misuse patterns and three additional numeric precision issues:
 
 **BigDecimal misuse:**
+- Double constructor (`new BigDecimal(double)`) causes precision loss; use `BigDecimal.valueOf()` or string constructor instead
+- Reference equality (`==`) instead of `compareTo` for comparison
+- `equals()` compares both value and scale — same numeric value with different scales is considered unequal
+- Single-argument `divide()` throws `ArithmeticException` on non-terminating decimals; always specify scale and rounding mode
+- `intValue()` / `longValue()` truncates fractional parts without rounding
 
-- `new BigDecimal(0.1)` — double constructor causes precision loss; actual value is `0.1000000000000000055511...`; use `BigDecimal.valueOf(0.1)` or `new BigDecimal("0.1")` instead
-- `a == b` (both `BigDecimal`) — reference equality, almost always `false`; use `a.compareTo(b) == 0`
-- `a.equals(b)` for `BigDecimal` — compares both value and scale; `new BigDecimal("1.0").equals(new BigDecimal("1.00"))` returns `false`; use `compareTo`
-- `a.divide(b)` (single argument) — throws `ArithmeticException` on non-terminating decimals (e.g., 1/3); use `a.divide(b, 2, RoundingMode.HALF_UP)`
-- `bigDecimal.intValue()` / `longValue()` — truncates the fractional part without rounding; `new BigDecimal("3.99").intValue()` returns `3`
+**Floating-point comparison:** IEEE 754 precision errors make direct equality checks (`==`) unreliable
 
-**Floating-point comparison:**
+**Integer overflow assigned to long:** Multiplication overflows in `int` space before widening to `long`
 
-- `if (a == 0.3)` where `a` is `double` — IEEE 754 precision errors make this condition never true; use `Math.abs(a - 0.3) < 1e-9`
-
-**Integer overflow assigned to long:**
-
-- `long total = count * 1024 * 1024` where `count` is `int` — the multiplication overflows in `int` space before widening to `long`; use `(long) count * 1024 * 1024`
-
-**Long field frontend serialization:**
-
-- `Long` fields in VO/DTO classes (e.g., snowflake IDs) returned to the frontend without `@JsonSerialize(using = ToStringSerializer.class)` — JavaScript's `Number` type cannot safely represent values beyond 2^53-1, causing ID precision loss in the browser
+**Long field frontend serialization:** `Long` fields (e.g., snowflake IDs) in VO/DTO classes returned to frontend without proper serialization annotation cause ID precision loss in JavaScript, since `Number` cannot safely represent values beyond 2^53-1
 
 ##### Loop Database Query Detection (N+1)
 
 Detects database queries issued inside loop boundaries — a leading cause of performance incidents that other static tools cannot detect because they cannot simultaneously understand loop scope and DB call semantics.
 
-Recognized loop forms:
+Recognized loop forms: standard Java loops (`for` / `while` / `do-while` / `for-each`) and Stream API pipeline operations (`.forEach` / `.stream().map`, etc.).
 
-- `for` / `while` / `do-while` / `for-each` — standard Java loops
-- `.forEach(lambda)` / `.stream().map(lambda)` and other Stream API pipeline operations
-
-DB call identification (structural evidence only, no method name guessing):
-
-- Class implements `JpaRepository` / `CrudRepository` (Spring Data JPA)
-- Class name ends with `Mapper`, `Repository`, or `Dao`
-- Method is annotated with `@Select`, `@Update`, `@Insert`, or `@Delete` (MyBatis)
-
-> This rule is disabled by default. Enable it as needed.
+DB call identification is based on structural evidence: classes implementing Spring Data JPA Repository interfaces, class names ending with `Mapper` / `Repository` / `Dao`, or methods annotated with MyBatis annotations.
 
 ---
 
@@ -422,11 +399,7 @@ DB call identification (structural evidence only, no method name guessing):
 
 ##### Debug Code Leftover
 
-Detects the following debug output statements that should not appear in production code:
-
-- `System.out.println(...)`
-- `System.err.println(...)`
-- `e.printStackTrace()`
+Detects debug output statements that should not appear in production code, such as `System.out.println`, `System.err.println`, and `e.printStackTrace()`.
 
 ##### TODO / FIXME Comments
 
@@ -497,7 +470,7 @@ Designed for Redis usage issues, supporting Java (Spring Data Redis / Jedis), Ko
 
 ##### Redis Cache Breakdown Detection
 
-Detects cache breakdown risk in the "cache read → reload → write" pattern. The rule tracks three key elements via PSI: the cache read call (`query1`), the first assignment after the cache miss (`p1`), and the cache write call (`set2`, traced across method boundaries). The reload block from `p1` to `set2` must satisfy both conditions below, otherwise an alert is raised:
+Detects cache breakdown risk in the "cache read → reload → write" pattern. The rule tracks the cache read call, the first assignment after the cache miss, and the cache write call (traced across method boundaries). The reload block must satisfy both conditions below, otherwise an alert is raised:
 
 - **Reload block unprotected by a lock**: under high concurrency, multiple threads simultaneously miss the cache, causing a stampede to the database
 - **Locked but no double-check**: after acquiring the lock, the cache is not re-read to confirm whether another thread has already rebuilt it, causing redundant writes
@@ -506,22 +479,17 @@ Detects cache breakdown risk in the "cache read → reload → write" pattern. T
 
 Detects Redis write operations that do not set an expiration time, preventing keys from permanently consuming memory:
 
-- `ValueOperations.set(key, value)` — 2-arg form (no TTL); 3/4-arg forms include TTL and are not flagged
-- `ValueOperations.setIfAbsent(key, value)` — 2-arg form; commonly misused as a distributed lock without a timeout
-- `BoundValueOperations.set(value)` / `BoundValueOperations.setIfAbsent(value)` — 1-arg forms (no TTL)
-- `setnx(key, value)` — 2-arg form; if the third argument is present and not the literal `0`, it is treated as a timeout and not flagged
-- `persist(key)` / `pPersist(key)` — explicitly removes the expiration time, making the key permanent
-- Go-redis: `client.Set(ctx, key, value, 0)` / `client.SetNX(ctx, key, value, 0)` — `duration=0` means never expire
+- Calling Set methods with 2 or fewer arguments (no TTL)
+- Using `setIfAbsent` style methods commonly used for distributed locks but missing a timeout
+- Explicitly calling `persist` / `pPersist` to remove the expiration time, making keys permanent
+- Go-redis: calling Set / SetNX with `duration=0`, which means never expire
 
 ##### Redis Dangerous Command Detection
 
 Detects three categories of dangerous Redis commands, in both method call and raw command string forms:
 
-- **Data destruction commands** (must never appear in business code): `FLUSHDB` (wipes the current database), `FLUSHALL` (wipes the entire Redis instance), `SHUTDOWN` (shuts down the Redis server)
-- **Full-scan commands** (block the server under large datasets):
-  - `KEYS pattern` — O(N) keyspace scan; use `SCAN` cursor iteration instead
-  - `HGETALL key` — returns all fields of a Hash in one response; prohibitively large when the Hash has many fields
-  - `SMEMBERS key` — returns all members of a Set in one response; same concern as `HGETALL`
+- **Data destruction commands** (must never appear in business code): `FLUSHDB`, `FLUSHALL`, `SHUTDOWN`
+- **Full-scan commands** (block the server under large datasets): `KEYS` (O(N) keyspace scan; use `SCAN` instead), `HGETALL` (returns all Hash fields), `SMEMBERS` (returns all Set members)
 
 ---
 
@@ -568,7 +536,7 @@ Go to `Settings` → `Tools` → `Code Review Plus`, in the Auto Review Settings
 
 AI Review uses AI CLI combined with the plugin's embedded **MCP Server** to perform fully autonomous code review. Three expert agents run in parallel across the code quality, security, and database dimensions, automatically surfacing deep issues that are easy to miss manually.
 
-Since v4.1, both **Claude Code CLI** (Anthropic) and **Codex CLI** (OpenAI) are supported as AI engines — configure the one that matches your setup.
+Both **Claude Code CLI** (Anthropic) and **Codex CLI** (OpenAI) are supported as AI engines — configure the one that matches your setup.
 
 ### Prerequisites
 
@@ -608,19 +576,22 @@ AI Review sends your code's diff content to the Claude API for analysis. **Befor
 ```
 IDEA Plugin
   │
-  ├─ Starts MCP HTTP Server (localhost:random port)
-  │    └─ Provides 3 tools: start_review / get_review_blocks / submit_problem
+  ├─ Starts HTTP API Server (localhost:random port)
+  │    └─ Provides 3 endpoints: start_review / get_review_blocks / submit_problem
   │
-  └─ Starts 3 Claude Code CLI subprocesses in parallel
+  └─ Starts 3 AI CLI subprocesses in parallel
+       │
+       ├─ [Communication] MCP tool calls or Skill invocations (both supported)
+       │
        ├─ Code Quality Review Expert Agent
        ├─ Security & Stability Review Expert Agent
        └─ Database Review Expert Agent
             │
-            └─ Each agent makes MCP tool calls:
-                 1. start_review → get the file manifest
-                 2. get_review_blocks → get diff content & semantic summaries
+            └─ Each agent calls API endpoints:
+                 1. start-review → get the file manifest
+                 2. get-review-blocks → get diff content & semantic summaries
                  3. Read/Grep source files → verify findings
-                 4. submit_problem → submit confirmed issues
+                 4. submit-problem → submit confirmed issues
 ```
 
 Issues found by each agent are automatically committed to the plugin database and trigger a UI refresh. Problem blocks are marked with "Auto Issues" status.
@@ -689,15 +660,7 @@ Go to `Settings → Tools → Code Review Plus → AI Review`:
 
 ### Custom Rules
 
-Custom rules are project-level and let teams add extra review requirements for the AI experts. For example:
-
-```
-1. All public API endpoint parameters must be validated with @Valid
-2. Never use HttpServletRequest/Response directly in the Service layer — pass context instead
-3. Database query method names must start with query/get/find/count
-```
-
-These notes are injected into all three experts' system prompts simultaneously. Each expert processes the rules accordingly.
+Custom rules are project-level and let teams add extra review requirements for the AI experts, such as team-specific coding conventions, database access constraints, or architectural rules. These rules are injected into all three experts' system prompts simultaneously.
 
 ### What Each Expert Reviews
 
@@ -737,8 +700,6 @@ Focused on database operation issues, for example:
 ---
 
 ## AI Auto-Fix [Premium]
-
-✨ **New in v4.1**
 
 Once AI Review surfaces issues, you can let AI fix the code directly — no manual search, no line-by-line editing. AI Auto-Fix reads the problem description and line numbers from each comment, then edits the source files on your behalf.
 
@@ -815,7 +776,9 @@ Go to `Settings` → `Tools` → `Code Review Plus` to configure:
 | Export Report Language | Language used for exported reports | English |
 | Mark as Issues on Comment | Automatically mark the associated diff block as "Issues" when adding a comment | Off |
 | Show Diff Block Toolbar | Display a quick action toolbar on the left side of each diff block in the Diff view for fast diff block navigation | Off |
-| Branch Update Check | Automatically detect new remote branch commits and show a reminder | On |
+| Branch Update Check | Automatically detect new remote/local branch commits and show a reminder | On |
+| Auto-Refresh on Branch Update | Auto-refresh the session when branch updates are detected, no manual click needed | Off |
+| Split Added Files by Methods | Split newly added Java source files into multiple review blocks by method/constructor/inner class | Off |
 | Default Export Directory | Choose between relative path or fixed path | Relative |
 | Auto Review Rule Settings | Configure auto review rule toggles and global options | See above |
 | AI Review Settings | Configure AI engine (Claude Code CLI / Codex CLI), model, expert toggles, and custom rules | See above |
