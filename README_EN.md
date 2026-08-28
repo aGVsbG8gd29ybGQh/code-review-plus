@@ -1,5 +1,3 @@
-[🎉🎉 Get Discount Code 🎉🎉](https://github.com/aGVsbG8gd29ybGQh/code-review-plus/issues/1)
-
 # Code Review Plus - Intelligent Code Review Assistant
 
 <div align="center">
@@ -10,7 +8,7 @@
 
 An IntelliJ IDEA plugin that helps you review code efficiently with session management, incremental review, AI-powered review, automated rules, and a comment system
 
-[![Version](https://img.shields.io/badge/version-2026.4.4-blue.svg)](https://plugins.jetbrains.com/plugin/29361-code-review-plus)
+[![Version](https://img.shields.io/badge/version-2026.5.1-blue.svg)](https://plugins.jetbrains.com/plugin/29361-code-review-plus)
 [![IDEA Version](https://img.shields.io/badge/IDEA-2025.2+-orange.svg)](https://www.jetbrains.com/idea/)
 
 </div>
@@ -103,7 +101,7 @@ After new commits on the branch, click the refresh button. The system recalculat
 
 This means you don't have to start over — just continue reviewing the changed parts.
 
-Newly added Java/Kotlin source files can be automatically split into multiple DiffBlocks by method, constructor, and inner class — each method becomes an independent review unit. Enable this in Settings.
+Newly added Java/Kotlin source files can be automatically split into multiple DiffBlocks by method, constructor, and inner class — each method becomes an independent review unit. Similarly, pure-addition hunks in modified files (left side has no changes) can also be split by method closure boundaries, enabled by the same setting. Enable this in Settings.
 
 When the local review branch has new commits, the plugin can auto-refresh the session without requiring a manual button click. Enable this in Settings as well.
 
@@ -133,6 +131,24 @@ Priority can be set when adding a comment and changed afterward. Issues submitte
 | <img src="images/comment_green.svg" width="16" height="16"> | Resolved | Issue has been fixed |
 
 **Floating comments**: When a comment's associated code block changes after a branch update, the comment is preserved but marked as "floating". You can still view the original code as it was when the comment was created.
+
+### Remote MR/PR Review [GitLab & GitHub]
+
+Turn an existing GitLab Merge Request or GitHub Pull Request into a local review session, then sync comments back to the remote — closing the review loop end to end.
+
+**Create a session from a remote MR/PR**: Click **+** in the toolbar → `From Remote MR/PR...`, pick a Git remote → browse and select one open MR/PR → the plugin fetches the branches, computes the diff, and creates a session bound to the remote. The session records remote metadata (MR/PR number, project, URL) and stays linked to it.
+
+**Pull remote comments**: On session creation and on refresh, the plugin automatically pulls the MR/PR's inline comments, maps them to local DiffBlocks by file + line, and shows the remote author (`@author`). Comments that don't match any block become floating comments. Pull is deduplicated by remote comment ID, so no duplicates are created.
+
+**Sync comments to the remote**: New local comments can be uploaded to the remote MR/PR with one click:
+
+- **Sync all**: Toolbar **Export / Sync** dropdown → `Sync Comments...` — pulls the latest remote comments first, then uploads local ones not yet synced
+- **Sync single**: Click the sync button in the comment list or comment detail to upload that comment as an inline comment
+- **Delete linkage**: When deleting a local comment, optionally check "sync delete remote comment" to remove the remote one too
+
+Line numbers are recomputed against the refreshed diff on upload; floating comments (whose block has disappeared) are skipped. Remote comment IDs keep the sync idempotent, so repeated operations never create duplicates.
+
+**Platform support**: GitLab (gitlab.com and self-hosted) and GitHub (github.com). Connections and tokens are configured in `Settings` → `Tools` → `Code Review Plus` → `Remote Platform`, with fine-grained token support; tokens are stored securely in IDEA PasswordSafe.
 
 ### Auto Review [Premium]
 
@@ -175,7 +191,7 @@ Recommended collaboration workflow: **Reviewer flags issues → Exports report �
 
 ## Free & Paid
 
-Code Review Plus uses a Freemium model: **Auto Review and AI Review require a license**. All other features (session management, status tracking, incremental review, comment system, report export & import, etc.) are free to use.
+Code Review Plus uses a Freemium model: **Auto Review and AI Review require a license**. All other features (session management, status tracking, incremental review, comment system, remote MR/PR review, report export & import, etc.) are free to use.
 
 Our commitment: **existing free features will always remain free, with no license restrictions added in the future**. You can use them with confidence.
 
@@ -241,6 +257,8 @@ Click OK, and the plugin will calculate all differences between the two branches
 - The review branch must contain all commits from the base branch
 - If there are uncommitted or unpushed local changes, a warning will be shown but it won't prevent session creation
 
+**Create a session from a remote MR/PR**: Click **+** in the toolbar → `From Remote MR/PR...`, select a Git remote, and pick an open MR/PR to create a session from the remote (see [Remote MR/PR Review](#remote-mrpr-review-gitlab--github)).
+
 ### 3. Review Code Blocks
 
 Double-click a file in the file list to open the Diff view. Click the status icon next to the line number to mark each code block:
@@ -270,15 +288,16 @@ After completing the review, click the export button in the toolbar to save the 
 
 | Button | Function | Description |
 |--------|----------|-------------|
-| <img src="images/add.svg" width="16" height="16"> | New Session | Create a new review session or import from a report |
+| <img src="images/add.svg" width="16" height="16"> | New Session | Create a new review session, import from a report, or create from a remote MR/PR |
 | <img src="images/refresh.svg" width="16" height="16"> | Refresh | Incrementally update the current session's diff data |
+| <img src="images/Vcs.Branch" width="16" height="16"> | Switch to Review Branch | Check out the session's review branch locally, enabling you to view code and run AI Fix on the correct branch |
 | <img src="images/delete.svg" width="16" height="16"> | Delete Session | Delete the current session and all associated data |
 | <img src="images/run.svg" width="16" height="16"> | Review Actions | Dropdown menu grouping Auto Review, AI Review, and AI Fix; tooltip shows the current reason when unavailable |
 | <img src="images/run.svg" width="16" height="16"> | Auto Review | Run predefined auto review rules on the current session (fast, rule-based) |
 | <img src="images/run.svg" width="16" height="16"> | AI Review | Start AI review — Claude Code CLI reviews all unreviewed blocks autonomously [Premium] |
 | <img src="images/show.svg" width="16" height="16"> | Switch View | Toggle between Diff Block List and Comment List |
 | <img src="images/filter.svg" width="16" height="16"> | Filter | Filter files by review status or change type |
-| <img src="images/export.svg" width="16" height="16"> | Export Report | Export review results as an HTML report |
+| <img src="images/export.svg" width="16" height="16"> | Export / Sync | Dropdown: export review results as an HTML report, or sync comments to the remote MR/PR |
 | <img src="images/close.svg" width="16" height="16"> | Close Session | Close the current session but preserve data for later |
 
 ### Filtering
@@ -313,6 +332,8 @@ The statistics panel features a progress bar with dynamic colors, native IDEA ic
 **Batch operations**: In the Comment List view, select multiple comments and right-click to update statuses or delete in bulk.
 
 **Navigate to code**: Double-click a comment in the Comment List to jump to the corresponding location in the Diff view.
+
+**Sync comments**: In remote sessions (GitLab MR / GitHub PR), sync all comments to the remote from the toolbar "Export / Sync" dropdown, or sync a single comment from the comment list / detail (see [Remote MR/PR Review](#remote-mrpr-review-gitlab--github)).
 
 ---
 
@@ -404,6 +425,10 @@ Detects debug output statements that should not appear in production code, such 
 ##### TODO / FIXME Comments
 
 Detects new `TODO`, `FIXME`, `HACK`, `XXX`, and similar marker comments. During review, these flag unresolved items that should be confirmed: can they be merged now, or must they be addressed before the PR is accepted?
+
+##### Unused Method Detection
+
+Detects newly added or modified methods that have no callers anywhere in the project, via PSI call-graph analysis. Framework-implicit invocations are excluded — Spring endpoints, `@Bean`, `@Scheduled`, JUnit tests, `@Override`, constructors, abstract methods, `main`, `Serializable` lifecycle methods, Lombok-generated code, etc. Matched methods are marked as "Auto Problem" (suggestion level) to help surface likely dead code. Supports Java and Kotlin. Off by default — enable it in Settings.
 
 ---
 
@@ -778,11 +803,12 @@ Go to `Settings` → `Tools` → `Code Review Plus` to configure:
 | Show Diff Block Toolbar | Display a quick action toolbar on the left side of each diff block in the Diff view for fast diff block navigation | Off |
 | Branch Update Check | Automatically detect new remote/local branch commits and show a reminder | On |
 | Auto-Refresh on Branch Update | Auto-refresh the session when branch updates are detected, no manual click needed | Off |
-| Split Added Files by Methods | Split newly added Java source files into multiple review blocks by method/constructor/inner class | Off |
+| Diff Block Split Optimization | Split newly added Java/Kotlin source files and pure-addition hunks in modified files by method/constructor/inner class for finer review granularity | Off |
 | Default Export Directory | Choose between relative path or fixed path | Relative |
 | Auto Review Rule Settings | Configure auto review rule toggles and global options | See above |
 | AI Review Settings | Configure AI engine (Claude Code CLI / Codex CLI), model, expert toggles, and custom rules | See above |
 | AI Auto-Fix Settings | Configure the fix engine (can differ from the review engine); the toolbar and comment context menu show the Fix button only when this is enabled | Off |
+| Remote Platform Settings | Manage GitLab/GitHub connections and tokens (Add / Edit / Remove / Test Connection), fine-grained token support; tokens stored securely in IDEA PasswordSafe | See above |
 
 ---
 
@@ -928,6 +954,18 @@ AI Review validates that the current Git branch matches the review session's bra
 
 1. Run `claude --version` (or `codex --version`) in a terminal to verify the command is available. If it fails, the CLI is not yet set up — follow the respective installation guide
 2. If the terminal works but the plugin validation fails, IDEA's `PATH` likely differs from your shell's. Set the "Start Command" in settings to the full binary path (e.g., `/usr/local/bin/claude` or `/usr/local/bin/codex`)
+
+### How do I configure a remote platform connection?
+
+Go to `Settings` → `Tools` → `Code Review Plus` → `Remote Platform`, click "Add", choose the platform (GitLab / GitHub), enter the platform URL and token, and click "Test Connection" before saving. Both classic and fine-grained tokens are supported and stored securely in IDEA PasswordSafe. GitLab supports self-hosted instances (custom domains); GitHub supports github.com.
+
+### Is comment sync to the remote automatic?
+
+Pull is automatic (remote comments are pulled on session creation and refresh); upload is manual — sync all from the toolbar's "Export / Sync" dropdown, or sync a single comment from the comment list / detail. Deleting a local comment can optionally sync-delete the remote one.
+
+### Which remote platforms are supported?
+
+GitLab (gitlab.com and self-hosted) and GitHub (github.com). GitHub Enterprise Server is not officially supported yet.
 
 ---
 
