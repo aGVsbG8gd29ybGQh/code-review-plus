@@ -1,5 +1,3 @@
-[🎉🎉 获取折扣码 🎉🎉](https://github.com/aGVsbG8gd29ybGQh/code-review-plus/issues/1)
-
 # Code Review Plus - 智能代码评审助手
 
 <div align="center">
@@ -10,7 +8,7 @@
 
 一款 IntelliJ IDEA 插件，通过会话管理、增量评审、AI 智能评审、自动化规则和评论系统，帮助你高效完成代码评审
 
-[![Version](https://img.shields.io/badge/version-2026.4.4-blue.svg)](https://plugins.jetbrains.com/plugin/29361-code-review-plus)
+[![Version](https://img.shields.io/badge/version-2026.5.1-blue.svg)](https://plugins.jetbrains.com/plugin/29361-code-review-plus)
 [![IDEA Version](https://img.shields.io/badge/IDEA-2025.2+-orange.svg)](https://www.jetbrains.com/idea/)
 
 </div>
@@ -103,7 +101,7 @@ Code Review Plus 从四个方向解决这些问题：
 
 这意味着你不需要从头开始——只需要继续评审变更的部分。
 
-对于新增的 Java/Kotlin 源文件，插件可以按方法、构造函数、内部类自动拆分为多个 DiffBlock，每个方法成为独立的评审单元，告别整文件对比。你可以在设置中开启此功能。
+对于新增的 Java/Kotlin 源文件，插件可以按方法、构造函数、内部类自动拆分为多个 DiffBlock，每个方法成为独立的评审单元，告别整文件对比。同样地，修改文件中纯增量 hunk（左侧无变更内容）也可以按方法闭包拆分，已开启此功能后自动生效。你可以在设置中开启此功能。
 
 当本地评审分支有更新时，插件还可以自动刷新评审会话而无需手动点击，同样在设置中开启。在设置中开启"分支更新自动刷新"即可。
 
@@ -133,6 +131,24 @@ Code Review Plus 从四个方向解决这些问题：
 |    <img src="images/comment_green.svg" width="16" height="16">    | 已处理  | 问题已修复      |
 
 **悬浮评论**：当关联的代码块在分支更新后发生变化，评论会被保留但标记为"悬浮"。你仍然可以查看评论创建时的原始代码。
+
+### 远程 MR/PR 评审 [GitLab & GitHub]
+
+将已有的 GitLab Merge Request 或 GitHub Pull Request 转为本地评审会话，评审完成后把评论同步回远端，形成完整的评审闭环。
+
+**创建远程评审会话**：点击工具栏 **+** → `From Remote MR/PR...`，选择 Git remote → 浏览并选中一条开放的 MR/PR → 插件自动 fetch 分支、计算差异并创建会话。会话会记录远端元数据（MR/PR 编号、项目、URL），与远端保持关联。
+
+**拉取远端评论**：远程会话创建成功以及刷新时，插件自动拉取 MR/PR 上的 inline 评论，按文件 + 行号映射到本地 DiffBlock，并展示远端作者（`@author`）。未命中映射的评论转为悬浮评论。拉取按远端评论 ID 去重，不会产生重复评论。
+
+**同步评论到远端**：本地新增的评论可以一键同步到远端 MR/PR：
+
+- **同步全部**：工具栏 **导出 / 同步** 下拉组 → `Sync Comments...`，先拉取远端最新评论再上传本地未同步的评论
+- **同步单条**：评论列表或评论详情中点击同步按钮，将该条评论作为 inline 评论上传到远端
+- **删除联动**：删除本地评论时勾选"同步删除远端评论"，可一并删除远端对应评论
+
+上传时行号按刷新后的 diff 自动重算，悬浮评论（对应代码块已消失）会跳过上传。通过远端评论 ID 保证同步幂等，重复操作不会产生重复评论。
+
+**平台支持**：GitLab（gitlab.com 及私有化部署）与 GitHub（github.com）。连接与 Token 在 `Settings` → `Tools` → `Code Review Plus` → `Remote Platform` 中配置，支持 fine-grained token，Token 安全存储于 IDEA PasswordSafe。
 
 ### 自动评审 [Premium]
 
@@ -176,7 +192,7 @@ AI 评审支持 **Claude Code CLI**（Anthropic）和 **Codex CLI**（OpenAI）�
 
 ## 免费与付费
 
-Code Review Plus 采用 Freemium 模式：**自动评审和 AI 评审功能需要许可证**，其余所有功能（会话管理、状态跟踪、增量评审、评论系统、报告导出与导入等）均免费使用。
+Code Review Plus 采用 Freemium 模式：**自动评审和 AI 评审功能需要许可证**，其余所有功能（会话管理、状态跟踪、增量评审、评论系统、远程 MR/PR 评审、报告导出与导入等）均免费使用。
 
 我们承诺：**现有的免费功能会一直免费，后续不会添加许可证限制**，你可以放心使用。
 
@@ -242,6 +258,8 @@ Code Review Plus 采用 Freemium 模式：**自动评审和 AI 评审功能需�
 - 创建评审会话时，评审分支必须包含基准分支的所有提交
 - 本地如果有改动未提交或未推送，会有提示但不影响创建评审会话
 
+**从远程 MR/PR 创建会话**：点击工具栏 **+** → `From Remote MR/PR...`，选择 Git remote 并选中一条开放的 MR/PR，即可从远端创建评审会话（详见 [远程 MR/PR 评审](#远程-mrpr-评审-gitlab--github) 章节）。
+
 ### 3. 逐个评审代码块
 
 在文件列表中双击文件，打开 Diff 视图。点击代码行号旁的状态图标，为每个代码块标记评审结果：
@@ -271,8 +289,9 @@ Code Review Plus 采用 Freemium 模式：**自动评审和 AI 评审功能需�
 
 | 按钮                                                    | 功能   | 说明                                           |
 |-------------------------------------------------------|------|----------------------------------------------|
-| <img src="images/add.svg" width="16" height="16">     | 创建会话 | 新建评审会话或从评审报告导入                               |
+| <img src="images/add.svg" width="16" height="16">     | 创建会话 | 新建评审会话、从评审报告导入，或从远程 MR/PR 创建                      |
 | <img src="images/refresh.svg" width="16" height="16"> | 刷新会话 | 增量更新当前会话的差异数据                                |
+| <img src="images/Vcs.Branch" width="16" height="16"> | 切换到评审分支 | 将会话关联的评审分支 checkout 到本地，方便在正确的分支上查看代码或执行 AI 修复            |
 | <img src="images/delete.svg" width="16" height="16">  | 删除会话 | 删除当前会话及所有关联数据                                |
 | <img src="images/run.svg" width="16" height="16">     | 评审操作 | 下拉菜单，包含自动评审、AI 评审和 AI 修复三项，tooltip 动态显示当前不可用原因 |
 | <img src="images/run.svg" width="16" height="16">     | 自动评审 | 对当前会话执行自动评审规则（基于规则的快速评审）                     |
@@ -280,7 +299,7 @@ Code Review Plus 采用 Freemium 模式：**自动评审和 AI 评审功能需�
 | <img src="images/run.svg" width="16" height="16">     | AI 修复 | 一键让 AI 修复当前会话所有待处理评论指出的问题（需在设置中手动开启）  |
 | <img src="images/show.svg" width="16" height="16">    | 视图切换 | 在 Diff Block 列表和评论列表之间切换                     |
 | <img src="images/filter.svg" width="16" height="16">  | 状态筛选 | 按评审状态或变更类型筛选文件                               |
-| <img src="images/export.svg" width="16" height="16">  | 导出报告 | 将评审结果导出为 HTML 报告                             |
+| <img src="images/export.svg" width="16" height="16">  | 导出 / 同步 | 下拉组：导出 HTML 评审报告，或一键同步评论到远程 MR/PR             |
 | <img src="images/close.svg" width="16" height="16">   | 关闭会话 | 关闭当前会话但保留数据，可稍后恢复                            |
 
 ### 状态筛选
@@ -315,6 +334,8 @@ Code Review Plus 采用 Freemium 模式：**自动评审和 AI 评审功能需�
 **批量操作**：在评论列表视图中，选中多个评论后右键批量更新状态或删除。
 
 **定位代码**：双击评论列表中的评论，自动跳转到 Diff 视图对应位置。
+
+**同步评论**：远程会话（GitLab MR / GitHub PR）中，可通过工具栏"导出 / 同步"下拉组一键同步全部评论到远端，或在评论列表 / 详情中同步单条（详见 [远程 MR/PR 评审](#远程-mrpr-评审-gitlab--github)）。
 
 ---
 
@@ -408,6 +429,10 @@ DB 调用识别基于结构性证据：类实现了 Spring Data JPA 的 Reposito
 ##### TODO / FIXME 注释
 
 检测新增的 `TODO`、`FIXME`、`HACK`、`XXX` 等标记注释。评审时用于确认这些待处理事项是否可以随当前代码提交，或是否需要在合并前完成。
+
+##### 未使用方法检测
+
+检测新增或修改的方法在项目内无任何调用方。通过 PSI 语义分析遍历调用图，自动排除框架隐式调用（Spring 端点、`@Bean`、`@Scheduled`、JUnit 测试、`@Override`、构造方法、抽象方法、`main`、`Serializable` 生命周期方法、Lombok 生成代码等）。命中时标记为"自动问题"（建议级），帮助识别疑似死代码。支持 Java 与 Kotlin，默认关闭，可在设置中开启。
 
 ---
 
@@ -786,11 +811,12 @@ AI 评审找出问题后，你可以一键让 AI 直接修复代码——无需�
 | 显示 Diff Block 工具栏 | 在 Diff 视图的每个代码块左侧显示操作工具栏，可快速切换 diff block                              | 关闭      |
 | 分支更新检测            | 自动检测远程/本地分支是否有新提交并提醒                                                      | 开启      |
 | 分支更新自动刷新         | 检测到分支更新时自动刷新评审会话，无需手动点击                                               | 关闭      |
-| 新增文件按方法拆分       | 新增 Java 源文件按方法/构造函数/内部类自动拆分为多个独立评审块                                      | 关闭      |
+| Diff Block 拆分优化       | 新增 Java/Kotlin 源文件按方法/构造函数/内部类自动拆分；修改文件中纯增量 hunk 也按方法闭包拆分，使评审粒度更细 | 关闭      |
 | 导出目录模式            | 选择相对路径或固定路径                                                            | 相对路径    |
 | 自动评审规则配置          | 配置自动评审规则的启用状态和全局选项                                                     | 见上文     |
 | AI 评审配置           | 配置 AI 引擎（Claude Code CLI / Codex CLI）、模型、专家开关、自定义规则等，详见 AI 评审章节        | 见上文     |
 | AI 修复配置           | 配置 AI 修复使用的引擎（可与评审引擎独立选择）；启用后工具栏和评论右键菜单会显示"AI 修复"入口，默认关闭需手动开启 | 关闭      |
+| 远程平台配置           | 管理 GitLab/GitHub 远程连接与 Token（添加 / 编辑 / 删除 / 测试连接），支持 fine-grained token，Token 安全存储于 IDEA PasswordSafe | 见上文     |
 
 ---
 
@@ -936,6 +962,18 @@ AI 评审会校验当前 Git 分支是否与评审会话的分支一致。如果
 
 1. 在终端执行 `claude --version` 验证命令是否可用。若无法执行，说明 Claude Code CLI 环境尚未配置好，请参照[官方文档](https://docs.anthropic.com/zh-CN/docs/claude-code/getting-started)完成安装和登录
 2. 如果终端可用但插件验证失败，通常是 IDEA 的 `PATH` 与终端不一致导致的。在设置中将"Claude 启动命令"改为完整路径（如 `/usr/local/bin/claude`）即可解决
+
+### 如何配置远程平台连接？
+
+进入 `Settings` → `Tools` → `Code Review Plus` → `Remote Platform`，点击"添加"选择平台（GitLab / GitHub）、填写平台 URL 和 Token，点击"测试连接"验证通过后保存。Token 支持 classic 和 fine-grained 两种类型，安全存储于 IDEA PasswordSafe。GitLab 支持私有化部署（自托管域名），GitHub 支持 github.com。
+
+### 评论同步到远端是自动的吗？
+
+拉取是自动的（创建远程会话及刷新时会自动拉取远端评论）；上传是手动的——通过工具栏"导出 / 同步"下拉组一键同步全部，或在评论列表 / 评论详情中同步单条。删除本地评论时可勾选同步删除远端评论。
+
+### 支持哪些远程平台？
+
+GitLab（gitlab.com 及私有化部署）与 GitHub（github.com）。GitHub Enterprise Server 暂不正式支持。
 
 ---
 
